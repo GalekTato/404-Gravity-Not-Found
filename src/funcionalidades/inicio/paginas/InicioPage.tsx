@@ -1,0 +1,19 @@
+import { Link } from 'react-router-dom'
+import { Icon } from '../../../componentes/ui/Icon'
+import { EarthIllustration } from '../../explorar/componentes/EarthIllustration'
+
+export function InicioPage() {
+  return <>
+    <section className="hero-section">
+      <div className="hero-copy"><p className="eyebrow"><span className="tiny-line"/> OBSERVACIÓN TERRESTRE · MÉXICO</p><h1>Un territorio.<br/>Millones de historias.<br/><span>Una nueva mirada.</span></h1><p className="hero-description">Explora México desde una perspectiva diferente.<br className="desktop-break"/> Conecta con nuestro planeta y descubre lo que<br className="desktop-break"/> la observación satelital puede contarnos.</p><div className="hero-actions"><Link className="button button-primary" to="/explorar"><Icon name="globe" size={18}/>Explorar México<Icon name="arrow" size={18}/></Link><Link className="text-link" to="/learn">Conoce el proyecto <Icon name="arrow" size={17}/></Link></div><div className="hero-footnote"><span className="status-dot"/> CIENCIA PARA ENTENDER NUESTRO PLANETA</div></div>
+      <div className="hero-earth"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="earth-coordinates">23° 38′ N <span>/</span> 102° 33′ O</div><EarthIllustration/><div className="earth-label"><span className="status-dot"/><span>MÉXICO<small>Una perspectiva por descubrir</small></span><span className="label-cross">+</span></div><p className="globe-disclaimer">ILUSTRACIÓN CONCEPTUAL · SIN DATOS EN TIEMPO REAL</p></div>
+      <div className="hero-bottom"><span>01 <span className="subtle">/</span> UNA VENTANA A LA TIERRA</span><span>DESLIZA PARA DESCUBRIR <span className="down-arrow">↓</span></span></div>
+    </section>
+    <section className="discovery-section"><div className="section-heading"><div><p className="eyebrow">OBSERVA. CONECTA. COMPRENDE.</p><h2>Acércate a lo que nos rodea.</h2></div><p>Del territorio a sus cambios.<br/>Un espacio para explorar y aprender.</p></div><div className="module-grid">
+      <Link className="module-card" to="/explorar"><div className="card-top"><span className="module-icon"><Icon name="globe" size={23}/></span><span className="card-number">01 / EXPLORAR</span><Icon name="arrow" size={20}/></div><h3>México, en perspectiva</h3><p>Un punto de partida para recorrer el territorio y conocer futuras regiones de estudio.</p><span className="card-bottom">Abre el explorador <Icon name="chevron" size={14}/></span></Link>
+      <Link className="module-card" to="/observar"><div className="card-top"><span className="module-icon"><Icon name="layers" size={23}/></span><span className="card-number">02 / OBSERVAR</span><Icon name="arrow" size={20}/></div><h3>Las huellas del cambio</h3><p>El futuro espacio para consultar observaciones SAR y mirar más allá de lo visible.</p><span className="card-bottom">Conoce las observaciones <span className="small-badge">PRÓXIMAMENTE</span></span></Link>
+      <Link className="module-card" to="/learn"><div className="card-top"><span className="module-icon"><Icon name="book" size={23}/></span><span className="card-number">03 / APRENDER</span><Icon name="arrow" size={20}/></div><h3>La ciencia, más cerca</h3><p>Descubre las ideas detrás del radar, las misiones satelitales y la observación terrestre.</p><span className="card-bottom">Empieza a aprender <Icon name="chevron" size={14}/></span></Link>
+    </div></section>
+    <section className="mission-strip"><span className="mission-icon"><Icon name="satellite" size={28}/></span><div><p className="eyebrow">UNA MISIÓN. MUCHAS POSIBILIDADES.</p><h2>Una mirada al futuro con NISAR.</h2><p>Preparamos un espacio para acercar la observación por radar al territorio mexicano.</p></div><Link className="text-link" to="/learn">Descubre NISAR <Icon name="arrow" size={18}/></Link></section>
+  </>
+}
