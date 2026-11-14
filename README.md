@@ -11,6 +11,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 pnpm typecheck
 pnpm lint
+pnpm datos:verificar
 pnpm build
 pnpm preview
 ```
@@ -30,14 +31,18 @@ src/
     estructura/       Layout, navegación y página 404
     ui/               Iconos compartidos
   funcionalidades/
-    inicio/paginas/
+    inicio/
+      paginas/        Portada espacial
+      componentes/    SpaceGlobe y controles
+      servicios/      Escena Three.js y modelo NISAR
+      tipos/          Contrato de la escena
     explorar/
       paginas/
-      componentes/    MexicoGlobe, GlobeControls, RegionMarkers,
-                      RegionInfoPanel, MexicoBoundary, EarthIllustration
-      hooks/          useGlobeView y ciclo de vida useCesiumViewer
-      servicios/      Adaptador Cesium, cámara y catálogo de regiones vacío
-      tipos/          Interfaces del explorador
+      componentes/    MexicoMap, GlobeControls, RegionMarkers,
+                      RegionInfoPanel y MexicoBoundary
+      hooks/          useGeografia, useMunicipios y useMapaMexico
+      servicios/      Validación GeoJSON y capas MapLibre
+      tipos/          Contratos de entidades, municipios y mapa
     observaciones/
       paginas/
       componentes/    Filtros, vista SAR y metadatos
@@ -71,20 +76,43 @@ Layout con navegación activa, menú móvil, salto al contenido, controles etiqu
 
 ## Alcance de la demostración
 
-El explorador utiliza CesiumJS con un globo 3D real, cámara inicial centrada en México, navegación con ratón/táctil, zoom y botón de regreso a México. Se carga de forma diferida al entrar a `/explorar`. El Viewer y sus listeners se destruyen al salir, incluso con React StrictMode. Los errores de WebGL o carga muestran un mensaje y permiten reintentar.
+El explorador utiliza MapLibre GL JS, con cartografía vectorial local del INEGI: 32 entidades y 2,478 municipios o demarcaciones del Marco Geoestadístico de diciembre de 2025, según los metadatos del servicio. Cesium y su complemento de copia se retiraron.
 
-El mapa base es Natural Earth II de baja resolución, incluido con Cesium y servido desde `/cesium/`; no requiere token de Cesium ion, acceso a sus APIs ni servicios externos de imágenes. El terreno usa un elipsoide sin relieve. Los créditos de Cesium y Natural Earth permanecen visibles. No son observaciones NISAR. La portada conserva su ilustración SVG original.
+La portada utiliza Three.js para un globo terrestre 3D con textura NASA Blue Marble local, fondo negro, estrellas generadas mediante shaders y un modelo estilizado de NISAR que recorre una órbita ilustrativa. Permite girar con ratón/táctil y flechas, acercar, alejar, pausar/reanudar y volver a la vista inicial de México. El modelo y la órbita no son a escala, no usan telemetría y no representan posiciones o tiempos reales de la misión. La textura es un mosaico histórico de julio de 2004, no una observación actual ni NISAR. Ver [procedencia](public/assets/espacio/README.md).
 
-El GeoJSON oficial y las restricciones territoriales siguen pendientes. La navegación puede salir de México; los límites de altura de cámara solo evitan acercamientos y alejamientos extremos. RegionMarkers admite entidades Cesium y selección, pero no se muestra ningún marcador sin catálogo validado.
+El motor 3D se carga solo al abrir Inicio, sin importar MapLibre ni los GeoJSON del explorador. La escena respeta movimiento reducido, se detiene fuera de pantalla o con la pestaña oculta y limita la densidad de píxeles y la frecuencia de renderizado. Al salir libera geometrías, materiales, texturas, controles, observers, eventos y contexto WebGL. Los fallos de textura/WebGL permiten reintentar. El encuadre se adapta a móvil para mantener visibles el globo y el satélite.
 
-El catálogo de regiones está vacío. Las fechas se editan sin hacer consultas. La polarización no ofrece opciones hasta tener un catálogo. SAR y metadatos muestran estados vacíos. Aprendamos presenta temas en preparación. No hay backend, autenticación, resultados científicos inventados ni API real.
+Incluye contornos y nombres de estados, selección con clic o mediante un selector accesible, acercamiento a la entidad, panel con clave geoestadística, carga municipal por entidad, selección de municipios, controles de zoom y regreso a México. El mapa ocupa toda la pantalla, con navegación inferior y panel desplegable. Los contornos municipales se muestran al seleccionar una entidad, sin un mínimo de zoom que los oculte en móvil; sus nombres aparecen desde zoom 7. El selector municipal permite elegir áreas pequeñas sin depender de acertar sobre el mapa.
+
+La vista inicial encuadra México con margen y la navegación se limita a una caja geográfica alrededor del país, que incluye mar y márgenes vecinos. No es una restricción exacta por polígono. El fondo topográfico usa la capa TOPO-WMS del servicio público de terrestris, con relieve SRTM/NASA procesado por mundialis; necesita Internet y no requiere token. Es relieve sombreado en 2D, no imágenes satelitales ni terreno 3D. Los rellenos de los polígonos son transparentes para conservar el relieve visible. Las áreas geoestadísticas no determinan límites político-administrativos con valor legal.
+
+Fuente del fondo: [WMS de terrestris](https://terrestris.de/en/products/free-osm-wms/) y [cartografía topográfica de mundialis](https://www.mundialis.de/en/software/web-map-services-wms/). Los créditos permanecen visibles. El servicio público no tiene disponibilidad garantizada: si falla, se informa sin bloquear las divisiones locales y se ofrece reintento. No se precargan ni se almacenan masivamente teselas de ese proveedor; se respeta la caché HTTP del navegador. Los GeoJSON del INEGI y las fuentes de las etiquetas siguen siendo locales.
+
+El futuro catálogo científico de regiones sigue pendiente; RegionMarkers está preparado para MapLibre sin inventar regiones. Las fechas de Observaciones se editan sin consultas. SAR y metadatos muestran estados vacíos. Aprendamos presenta temas en preparación. No hay backend, autenticación, observaciones ni resultados NISAR inventados.
+
+## Datos geográficos
+
+`public/geojson/estados.geojson` contiene las entidades, `catalogo.json` sus nombres, puntos interiores de etiqueta y encuadres, y `municipios/01.geojson` a `32.geojson` las divisiones de cada entidad. `procedencia.json` documenta las URLs originales, metadatos, fechas de descarga y SHA-256 de cada colección. Ver [la procedencia y transformaciones](public/geojson/README.md).
+
+Se conservan todos los vértices y se redondean las coordenadas a seis decimales; no se simplifican las geometrías ni se incluyen estadísticas demográficas. El conjunto ocupa aproximadamente 113 MB sin compresión; el archivo nacional unos 24 MB. Solo se carga la colección municipal de la entidad seleccionada. En producción conviene habilitar compresión HTTP y, para mayor escala, generar teselas vectoriales. El motor simplifica visualmente sus teselas según el zoom; los archivos originales locales mantienen sus vértices.
+
+```sh
+pnpm datos:verificar   # Audita hashes, relaciones y conteos sin red
+pnpm datos:geografia  # Reimporta desde INEGI, usando caché temporal de descargas
+```
+
+La importación necesita Internet; la navegación usa los archivos ya incluidos. Para forzar una nueva descarga, elimina únicamente los archivos de la caché `front404-inegi` de tu directorio temporal antes de importar. El script registra el corte que responda el servicio; revisa los nuevos metadatos antes de actualizar las etiquetas de periodo de la interfaz.
 
 ## PWA y despliegue
 
-Se conserva `vite-plugin-pwa` con `registerType: autoUpdate`, manifiesto en español e iconos PNG propios de 192 y 512 píxeles. El service worker precachea el shell y los bundles (máximo 8 MiB por archivo), sin descargar datos científicos. Los recursos `/cesium/` se cachean a medida que se visitan (CacheFirst, 250 entradas, 30 días); la vista 3D sin conexión depende de los recursos ya cargados. La instalación requiere HTTPS o localhost y depende del navegador.
+Se conserva `vite-plugin-pwa` con `registerType: autoUpdate`, manifiesto en español e iconos PNG propios de 192 y 512 píxeles. Se precachean el shell, los bundles y la textura del globo (máximo 4 MiB por archivo); los GeoJSON se excluyen de la descarga masiva y se cachean bajo demanda con NetworkFirst, 40 entradas y 30 días. Sin conexión solo estarán disponibles los datos previamente visitados. En desarrollo Vite no registra el service worker; para comprobar PWA usa `pnpm build` y `pnpm preview`. La instalación requiere HTTPS o localhost y depende del navegador.
 
-`vite-plugin-static-copy` sirve en desarrollo y copia en producción `Workers`, `ThirdParty`, `Assets` y `Widgets` de Cesium. `CESIUM_BASE_URL` apunta a `/cesium/`. El despliegue actual está configurado para la raíz del dominio.
+MapLibre y su CSS se cargan de forma diferida al entrar al explorador. El mapa, los listeners y ResizeObserver se destruyen al salir, incluso con React StrictMode. Las cargas geográficas se cancelan al cambiar de entidad o salir, para impedir respuestas atrasadas. Los errores de mapa o datos muestran una opción de reintento.
 
-Publicar `dist/` como SPA. El servidor debe devolver `index.html` al abrir rutas directamente; React Router mostrará la página o el 404. `public/_redirects` incluye esa regla para proveedores compatibles; en otros configurar el fallback equivalente. `.openai/hosting.json` declara la salida estática para Sites.
+La actualización municipal espera la promesa de `GeoJSONSource.setData()` en MapLibre 6 y comprueba después que las teselas de esa fuente estén listas en un frame de renderizado. Se serializan las escrituras por sesión y se descartan actualizaciones obsoletas; el panel distingue la descarga de datos de su dibujo en el mapa. Las capas se filtran por la entidad actual mientras se preparan sus teselas. La selección y el resaltado se aplican cuando la fuente está lista; una espera excesiva o un error permite reintentar.
+
+MapLibre 6 requiere su worker como recurso separado. `mapaMexico.ts` lo importa con `?worker&url` y llama a `setWorkerUrl` antes de crear el mapa; Vite resuelve la ruta en desarrollo y emite un archivo con hash en producción. No necesita complementos de copia.
+
+El trabajo actual se sirve en localhost con `pnpm dev --host 127.0.0.1`. No se publica automáticamente en Sites. Para una publicación futura, servir `dist/` como SPA con fallback a `index.html`. Se conserva `.openai/hosting.json` como configuración histórica; no es necesario para localhost.
 
 [NASA Eyes](https://eyes.nasa.gov/apps/earth/) es inspiración visual. No se reutiliza su código, identidad ni recursos.

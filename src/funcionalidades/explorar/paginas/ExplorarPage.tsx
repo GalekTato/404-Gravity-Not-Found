@@ -1,38 +1,65 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useRef, useState } from 'react'
 import { GlobeControls } from '../componentes/GlobeControls'
 import { RegionInfoPanel } from '../componentes/RegionInfoPanel'
-import { useGlobeView } from '../hooks/useGlobeView'
-import { regionesEstudio } from '../servicios/configuracionMapa'
-const MexicoGlobe = lazy(() => import('../componentes/MexicoGlobe').then(module => ({ default: module.MexicoGlobe })))
+import { useGeografia, useMunicipios } from '../hooks/useGeografia'
+import type { EstadoCapaMunicipal, MapaHandle } from '../tipos/cartografia'
+
+const MexicoMap = lazy(() => import('../componentes/MexicoMap').then(module => ({ default: module.MexicoMap })))
+
 export function ExplorarPage() {
-  const { globeRef, disponible, setDisponible, vista, regionSeleccionada, seleccionarRegion,
-    mostrarLimites, setMostrarLimites, zoom, restablecer } = useGlobeView()
+  const { datos, error, reintentar } = useGeografia()
+  const mapaRef = useRef<MapaHandle>(null)
+  const [disponible, setDisponible] = useState(false)
+  const [claveEntidad, setClaveEntidad] = useState<string>()
+  const [claveMunicipio, setClaveMunicipio] = useState<string>()
+  const [mostrarLimites, setMostrarLimites] = useState(true)
+  const [mostrarMunicipios, setMostrarMunicipios] = useState(true)
+  const [panelAbierto, setPanelAbierto] = useState(false)
+  const [estadoCapaMunicipal, setEstadoCapaMunicipal] = useState<EstadoCapaMunicipal>()
+  const entidad = datos?.catalogo.find(item => item.clave === claveEntidad)
+  const municipales = useMunicipios(entidad?.clave)
+  const dibujandoMunicipios = !!municipales.datos && (estadoCapaMunicipal?.clave !== entidad?.clave || estadoCapaMunicipal?.estado === 'cargando')
+  const errorCapaMunicipal = estadoCapaMunicipal?.clave === entidad?.clave ? estadoCapaMunicipal?.mensaje : undefined
+  const municipio = municipales.datos?.features.find(item => item.properties.clave === claveMunicipio)
+  const seleccionarEntidad = useCallback((clave: string) => { setClaveEntidad(clave || undefined); setClaveMunicipio(undefined) }, [])
+  const seleccionarMunicipio = useCallback((clave: string) => {
+    if (!clave || clave.startsWith(claveEntidad ?? '-')) setClaveMunicipio(clave || undefined)
+  }, [claveEntidad])
+  function restablecer() { seleccionarEntidad(''); mapaRef.current?.restablecer() }
+  function zoom(delta: number) { mapaRef.current?.zoom(delta) }
 
   return (
-    <section className="page-container">
-      <div className="section-heading">
-        <div><p className="eyebrow">01 / EXPLORAR</p><h1>México, en perspectiva.</h1></div>
-        <span className="chip">CesiumJS · Globo 3D</span>
+    <section className="explorer-fullscreen" aria-label="Explorador geográfico de México">
+      <h1 className="sr-only">Mapa de México</h1>
+      <div className="map-canvas-wrapper">
+        {datos ? <Suspense fallback={<div className="map-stage map-loading" role="status">Cargando el mapa…</div>}>
+          <MexicoMap ref={mapaRef} geografia={datos} entidad={entidad} municipios={municipales.datos}
+            municipio={claveMunicipio} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio}
+            mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios} onReadyChange={setDisponible}
+            onEstadoCapaMunicipal={setEstadoCapaMunicipal}/>
+        </Suspense> : <div className="map-stage map-loading" role={error ? 'alert' : 'status'}>
+          <p>{error ?? 'Cargando las 32 entidades de México…'}</p>
+          {error && <button className="button button-primary" onClick={reintentar}>Volver a intentar</button>}
+        </div>}
+        <GlobeControls disabled={!disponible} onZoom={zoom} onReset={restablecer}/>
       </div>
-      <p className="page-intro">Recorre el planeta en tres dimensiones, con México como punto de partida. Arrastra para navegar, usa la rueda o los botones para acercarte y vuelve a México en cualquier momento.</p>
-      <div className="explorer-grid">
-        <div className="explorer-view">
-          <div className="map-topline">
-            <span className="eyebrow">VISTA GENERAL · MÉXICO</span>
-            <label className="toggle-label">
-              <input type="checkbox" checked={mostrarLimites} onChange={e => setMostrarLimites(e.target.checked)}/>
-              Límites de México · pendientes
-            </label>
+      <header className="explorer-toolbar">
+        <div className="explorer-tools">
+          <button className="territory-toggle" aria-expanded={panelAbierto} aria-controls="panel-territorio" onClick={() => setPanelAbierto(value => !value)}>
+            {panelAbierto ? 'Cerrar panel' : 'Estados y municipios'} <span aria-hidden="true">{panelAbierto ? '×' : '+'}</span>
+          </button>
+          <div className="map-layer-toggles">
+            <label className="toggle-label"><input type="checkbox" checked={mostrarLimites} onChange={e => setMostrarLimites(e.target.checked)}/> Estados</label>
+            <label className="toggle-label"><input type="checkbox" checked={mostrarMunicipios} onChange={e => setMostrarMunicipios(e.target.checked)}/> Municipios</label>
           </div>
-          <Suspense fallback={<div className="globe-stage globe-loading" role="status">Cargando el motor 3D…</div>}>
-            <MexicoGlobe ref={globeRef} vista={vista} regiones={regionesEstudio}
-              regionSeleccionada={regionSeleccionada} onSeleccionarRegion={seleccionarRegion}
-              mostrarLimites={mostrarLimites} onReadyChange={setDisponible}/>
-          </Suspense>
-          <GlobeControls disabled={!disponible} onZoom={zoom} onReset={restablecer}/>
-          <p className="map-description">Mapa base Natural Earth de baja resolución. Sin relieve ni observaciones NISAR. La navegación territorial restringida y los límites oficiales se incorporarán después.</p>
         </div>
-        <RegionInfoPanel region={regionesEstudio.find(r => r.id === regionSeleccionada)}/>
+      </header>
+      <div id="panel-territorio" className="explorer-panel" hidden={!panelAbierto}>
+        <RegionInfoPanel catalogo={datos?.catalogo ?? []} entidad={entidad} municipios={municipales.datos}
+          municipio={municipio} cargando={municipales.cargando || dibujandoMunicipios} dibujando={dibujandoMunicipios}
+          error={municipales.error ?? errorCapaMunicipal}
+          onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio} onReintentar={municipales.reintentar} onReset={restablecer}/>
+        <p className="territory-disclaimer">Áreas geoestadísticas sin valor de límite político-administrativo legal. Sin observaciones NISAR.</p>
       </div>
     </section>
   )

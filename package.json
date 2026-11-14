@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "datos:geografia": "node scripts/importar-geografia.mjs",
+    "datos:verificar": "node scripts/verificar-geografia.mjs",
     "typecheck": "tsc -b --pretty false",
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,21 +14,23 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.5",
-    "cesium": "^1.147.0",
+    "maplibre-gl": "^6.18.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
-    "tailwindcss": "^4.3.5"
+    "tailwindcss": "^4.3.5",
+    "three": "^0.187.0"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
-    "vite-plugin-pwa": "^2.0.0",
-    "vite-plugin-static-copy": "^4.1.1"
+    "vite-plugin-pwa": "^2.0.0"
   }
 }

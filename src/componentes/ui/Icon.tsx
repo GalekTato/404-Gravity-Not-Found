@@ -1,5 +1,10 @@
-export type IconName = 'home' | 'globe' | 'layers' | 'book' | 'arrow' | 'plus' | 'minus' | 'target' | 'menu' | 'close' | 'satellite' | 'chevron'
-const paths: Record<IconName, string> = {
+import { SolarIcon } from './SolarIcon'
+import type { SolarIconName } from './SolarIcon'
+
+type BaseIconName = 'home' | 'globe' | 'layers' | 'book' | 'arrow' | 'plus' | 'minus' | 'target' | 'menu' | 'close' | 'satellite' | 'chevron'
+export type IconName = BaseIconName | SolarIconName
+function esIconoSolar(name: IconName): name is SolarIconName { return name.startsWith('solar-') }
+const paths: Record<BaseIconName, string> = {
   home: 'm3 10 9-7 9 7v10h-6v-7H9v7H3Z',
   globe: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c-5 5-5 13 0 18 5-5 5-13 0-18Z',
   layers: 'm3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4',
@@ -11,5 +16,6 @@ const paths: Record<IconName, string> = {
   chevron: 'm9 5 7 7-7 7',
 }
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  if (esIconoSolar(name)) return <SolarIcon name={name} size={size}/>
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>
 }

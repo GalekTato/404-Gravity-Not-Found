@@ -3,38 +3,31 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 export default defineConfig({
-  define: { CESIUM_BASE_URL: JSON.stringify('/cesium/') },
   plugins: [
     react(),
     tailwindcss(),
-    viteStaticCopy({
-      targets: ['Workers', 'ThirdParty', 'Assets', 'Widgets'].map(directory => ({
-        src: `node_modules/cesium/Build/Cesium/${directory}`,
-        dest: 'cesium',
-        rename: { stripBase: 4 },
-      })),
-    }),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['assets/espacio/tierra-blue-marble.jpg'],
       workbox: {
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        globIgnores: ['**/cesium/**'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globIgnores: ['**/geojson/**'],
         runtimeCaching: [{
-          urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/cesium/'),
-          handler: 'CacheFirst',
+          urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/geojson/'),
+          handler: 'NetworkFirst',
           options: {
-            cacheName: 'cesium-static-v1',
-            expiration: { maxEntries: 250, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            cacheName: 'geografia-inegi-v1',
+            networkTimeoutSeconds: 5,
+            expiration: { maxEntries: 40, maxAgeSeconds: 30 * 24 * 60 * 60 },
             cacheableResponse: { statuses: [200] },
           },
         }],
       },
       manifest: {
-        name: 'Earth Symphony',
-        short_name: 'EarthSymphony',
+        name: 'Explora México',
+        short_name: 'México',
         description:
           'Explora y comprende el territorio mexicano. Plataforma en preparación para NISAR.',
         theme_color: '#080d13',

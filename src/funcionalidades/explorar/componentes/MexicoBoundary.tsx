@@ -1,5 +1,18 @@
-import type { BoundaryProps } from '../tipos/explorador'
-export function MexicoBoundary({ visible, geojsonUrl }: BoundaryProps) {
-  if (!visible) return null
-  return <p className="boundary-notice" role="status">{geojsonUrl ? 'Fuente definida; integración cartográfica pendiente.' : 'Límites reales pendientes de incorporar con GeoJSON.'}</p>
+import { useEffect } from 'react'
+import type { SesionMapa } from '../hooks/useMapaMexico'
+export function MexicoBoundary({ visible, sesion }: { visible: boolean; sesion?: SesionMapa }) {
+  useEffect(() => {
+    if (!sesion?.activa) return
+    const { map } = sesion
+    function aplicar() {
+      const valor = visible ? 'visible' : 'none'
+      if (sesion?.activa && map.getLayer('estados-linea') && map.getLayoutProperty('estados-linea', 'visibility') !== valor) {
+        map.setLayoutProperty('estados-linea', 'visibility', valor)
+      }
+    }
+    aplicar()
+    map.on('styledata', aplicar)
+    return () => { map.off('styledata', aplicar) }
+  }, [sesion, visible])
+  return null
 }
