@@ -14,16 +14,17 @@
 
 Inicio solo compone contenido y enlaces; no necesita hooks ni contratos propios. Observaciones no crea un servicio ni un hook que simule consultas sin API. Aprendamos utiliza un catálogo editorial sin estado. No se crean carpetas vacías, hooks transversales sin uso ni módulos de análisis y regiones fuera del alcance. Las regiones pertenecen al explorador por ahora.
 
-Se usan imports explícitos y estado local, sin otra biblioteca de estado. `useGlobeView` encapsula la vista ilustrativa. La portada reutiliza la ilustración independiente del futuro motor Cesium.
+Se usan imports explícitos y estado local, sin otra biblioteca de estado. `useGlobeView` conserva selección y controles del explorador. `MexicoGlobe` expone un handle tipado de zoom y restablecimiento, ejecutados contra la cámara actual de Cesium; el estado no duplica la posición de la cámara. La portada conserva una ilustración independiente del motor.
 
-## Próxima etapa Cesium
+## Integración Cesium
 
-1. Instalar CesiumJS y configurar sus recursos estáticos al abordar la escena real.
-2. Encapsular creación y destrucción de Viewer en un adaptador con ciclo de vida React.
-3. Convertir `VistaCamara` al motor. Hoy los controles solo escalan un SVG.
-4. Incorporar un GeoJSON de México con fuente oficial, licencia y fecha. `MexicoBoundary` define su entrada, pero hoy no carga datos.
-5. Implementar y validar restricciones territoriales reales.
-6. Conectar regiones verificadas a `RegionMarkers` y `RegionInfoPanel`, calculando sus posiciones desde el motor.
+`cesiumViewer.ts` configura el Viewer, la cámara, límites de altura y el mapa base Natural Earth II local, sin ion ni token. `useCesiumViewer` controla inicialización, carga asíncrona, errores y destrucción. Cada efecto conserva su propia instancia y bandera de cancelación: una carga resuelta después de desmontar no modifica la escena. Los eventos se eliminan antes de destruir el Viewer.
+
+El motor y su CSS se cargan con React.lazy en el explorador; Inicio no importa Cesium. `requestRenderMode` evita dibujar continuamente cuando no hay cambios. Los controles de zoom actúan sobre la altura actual y el restablecimiento respeta movimiento reducido. Los marcadores crean entidades con coordenadas geográficas y limpian sus handlers y entidades al desmontar; el catálogo continúa vacío.
+
+Vite define `CESIUM_BASE_URL` y copia las cuatro carpetas estáticas oficiales con `vite-plugin-static-copy`. Workbox precachea los bundles con un máximo de 8 MiB por archivo y excluye los recursos estáticos Cesium del precache masivo; los cachea bajo demanda. No se garantiza un primer arranque 3D sin conexión.
+
+Pendiente: incorporar GeoJSON con fuente oficial, licencia y fecha; validar restricciones territoriales; publicar un catálogo científico real de regiones. No se usan proveedores de terreno ni capas de imágenes remotas.
 
 ## Observaciones
 
@@ -31,4 +32,6 @@ El adaptador futuro validará las respuestas en ejecución y documentará proced
 
 ## Verificación
 
-Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm build`. La revisión funcional debe cubrir menú móvil, rutas directas, 404, teclado, fechas, zoom y restablecimiento. Las comprobaciones actuales no certifican Cesium, API ni resultados científicos, fuera de alcance.
+Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm build`. La integración se verificó en Chrome headless con WebGL por software: renderizado del canvas, zoom, regreso a México, aviso de límites pendientes, ausencia de desbordamiento a 390 px, salida y regreso al explorador sin duplicar canvas y ausencia de excepciones o solicitudes de datos externas. Se inspeccionaron capturas de escritorio y móvil. Esta prueba no sustituye la validación de GPU físicas ni certifica APIs o resultados científicos, fuera de alcance.
+
+La compilación informa del tamaño del chunk Cesium (aproximadamente 4.2 MB, 1.1 MB gzip), cargado de forma diferida desde el explorador. No se oculta la advertencia aumentando el umbral global de Vite.
