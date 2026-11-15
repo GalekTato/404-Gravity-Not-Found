@@ -2,7 +2,7 @@ name: Deploy TerraSync to GitHub Pages
 
 on:
   push:
-    branches: [integration, main]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
