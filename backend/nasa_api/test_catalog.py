@@ -3,7 +3,7 @@ from datetime import date
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
+from unittest import TestCase, mock
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
@@ -139,3 +139,22 @@ class CatalogServiceTests(TestCase):
         self.assertEqual(summary["total_events"], 2)
         self.assertEqual(summary["states_covered"], 2)
         self.assertEqual(summary["markers"][0]["states_affected"], 2)
+
+    def test_database_url_parses_neon_sslmode(self):
+        env = {
+            "DEBUG": "True",
+            "DATABASE_URL": "postgresql://neondb_owner:pass%231@ep-cool-123.us-east-2.aws.neon.tech/neondb?sslmode=require",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            from nasa_api.settings import _database_config_from_env
+
+            config = _database_config_from_env()
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "neondb")
+        self.assertEqual(config["USER"], "neondb_owner")
+        self.assertEqual(config["PASSWORD"], "pass#1")
+        self.assertEqual(config["HOST"], "ep-cool-123.us-east-2.aws.neon.tech")
+        self.assertEqual(config["PORT"], "5432")
+        self.assertEqual(config["OPTIONS"], {"sslmode": "require"})
+        self.assertEqual(config["CONN_MAX_AGE"], 60)
+        self.assertTrue(config["CONN_HEALTH_CHECKS"])

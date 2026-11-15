@@ -1,4 +1,5 @@
 import os
+from urllib.parse import parse_qs, unquote, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +36,12 @@ ALLOWED_HOSTS = [
     for host in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
     if host.strip()
 ]
+_render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if _render_hostname and _render_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_hostname)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -104,16 +111,41 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'nasa_api.wsgi.application'
 
-DATABASES = {
-    "default": {
+def _database_config_from_env() -> dict:
+    """Build Django PostgreSQL config from DATABASE_URL (e.g. Neon) or DATABASE_* env vars."""
+    database_url = os.environ.get("DATABASE_URL", "").strip()
+    if database_url:
+        parsed = urlparse(database_url)
+        query = parse_qs(parsed.query)
+        options = {}
+        if "sslmode" in query and query["sslmode"]:
+            options["sslmode"] = query["sslmode"][0]
+        config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed.path.lstrip("/")) or "nasa_db",
+            "USER": unquote(parsed.username or ""),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname or "127.0.0.1",
+            "PORT": str(parsed.port or 5432),
+            "CONN_MAX_AGE": 60,
+            "CONN_HEALTH_CHECKS": True,
+        }
+        if options:
+            config["OPTIONS"] = options
+        return config
+
+    return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("DATABASE_NAME", "nasa_db"),
         "USER": os.environ.get("DATABASE_USER", "nasa"),
         "PASSWORD": os.environ.get("DATABASE_PASSWORD", "local-docker-smoke-db-pass"),
         "HOST": os.environ.get("DATABASE_HOST", "127.0.0.1"),
         "PORT": os.environ.get("DATABASE_PORT", "5432"),
+        "CONN_HEALTH_CHECKS": True,
     }
-}
+
+
+DATABASES = {"default": _database_config_from_env()}
 
 CACHES = {
     "default": {

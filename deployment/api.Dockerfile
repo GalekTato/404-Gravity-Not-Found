@@ -5,6 +5,7 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt gunicorn==23.0.0
 COPY backend/nasa_api ./nasa_api
 COPY backend/manage.py ./
+COPY data/processed ./data/processed
 RUN mkdir -p static staticfiles
 EXPOSE 8000
-CMD ["gunicorn", "nasa_api.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--access-logfile", "-"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn nasa_api.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-1} --timeout 120 --access-logfile -"]
