@@ -24,6 +24,7 @@ services:
       DEBUG: "False"
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       DATABASE_HOST: db
       DATABASE_NAME: terrasync
       DATABASE_USER: terrasync
@@ -31,7 +32,7 @@ services:
       PIPELINE_DATA_ROOT: /pipeline_data
       DRF_ANON_RATE: ${DRF_ANON_RATE:-600/min}
     volumes:
-      - ./404-Gravity-Not-Found-integration/data:/pipeline_data/data:ro
+      - ./data:/pipeline_data/data:ro
       - django_static:/app/staticfiles
     depends_on:
       db:
