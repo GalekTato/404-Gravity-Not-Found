@@ -6,7 +6,7 @@ export interface ControlEscenaEspacial {
 }
 export interface OpcionesEscenaEspacial {
   contenedor: HTMLDivElement
-  etiqueta: HTMLDivElement
+  encuadre: HTMLDivElement
   animar: boolean
   onLista: () => void
   onError: (mensaje: string) => void

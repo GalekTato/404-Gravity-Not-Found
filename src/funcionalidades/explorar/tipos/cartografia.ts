@@ -22,7 +22,7 @@ export type EstadoPredicciones =
 export interface MapaHandle { zoom: (delta: number) => void; restablecer: () => void }
 export interface MapaMexicoProps {
   ref?: Ref<MapaHandle>
-  geografia: GeografiaMexico
+  geografia?: GeografiaMexico
   entidad?: Entidad
   municipios?: ColeccionAreas
   municipio?: string

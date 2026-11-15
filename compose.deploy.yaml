@@ -1,0 +1,64 @@
+name: terrasync
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: terrasync
+      POSTGRES_USER: terrasync
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
+    volumes:
+      - postgres_deploy:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terrasync -d terrasync"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: deployment/api.Dockerfile
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn nasa_api.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile -"
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DATABASE_HOST: db
+      DATABASE_NAME: terrasync
+      DATABASE_USER: terrasync
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
+      PIPELINE_DATA_ROOT: /pipeline_data
+      DRF_ANON_RATE: ${DRF_ANON_RATE:-600/min}
+    volumes:
+      - ./404-Gravity-Not-Found-integration/data:/pipeline_data/data:ro
+      - django_static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1',8000), timeout=3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+  web:
+    build:
+      context: .
+      dockerfile: deployment/frontend.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:80"
+    volumes:
+      - django_static:/django-static:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_deploy:
+  django_static:

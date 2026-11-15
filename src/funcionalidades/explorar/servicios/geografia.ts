@@ -33,7 +33,12 @@ export function validarColeccion(value: unknown, entidad?: string): ColeccionAre
   return value as unknown as ColeccionAreas
 }
 async function leerJson(archivo: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(`${import.meta.env.BASE_URL}geojson/${archivo}`, { signal })
+  const url = `${import.meta.env.BASE_URL}geojson/${archivo}`
+  let response = await fetch(url, { signal })
+  // Refresh an older HTTP response if a server used to send an incorrect MIME type.
+  if (response.ok && !response.headers.get('content-type')?.includes('json')) {
+    response = await fetch(url, { signal, cache: 'reload' })
+  }
   if (!response.ok || !response.headers.get('content-type')?.includes('json')) throw new Error('No se pudo leer la cartografía local. Comprueba que los archivos GeoJSON estén disponibles.')
   return response.json()
 }

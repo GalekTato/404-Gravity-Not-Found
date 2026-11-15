@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
 import type { Map, RasterTileSource } from 'maplibre-gl'
-import { crearMapa, teselasRelieve } from '../servicios/mapaMexico'
+import { agregarRelieve, crearMapa, teselasRelieve } from '../servicios/mapaMexico'
 import type { EstadoCarga } from '../tipos/cartografia'
 
 export interface SesionMapa { map: Map; activa: boolean }
@@ -37,8 +37,9 @@ export function useMapaMexico(container: RefObject<HTMLDivElement | null>, onRea
         }
         fallo({ error: event.error instanceof Error ? event.error : new Error(String(event.error)) })
       })
-      map.on('load', () => {
+      map.on('style.load', () => {
         if (!activa) return
+        agregarRelieve(map)
         setSesion(instancia)
         setEstado('listo')
         onReadyChange(true)

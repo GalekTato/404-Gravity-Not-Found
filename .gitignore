@@ -9,26 +9,22 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.taste-skill/
 *.local
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-# Environments
-dev/
-venv/
-env/
-.venv/
-# Django
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
-# Environment/secrets
 .env
-.env.local
-# Editor/system
-.vscode/
+.env.*
+!.env.example
+__pycache__/
+.venv/
+*.sqlite3
+docs/entrega/*.aux
+docs/entrega/*.out
+docs/entrega/*.toc
+docs/entrega/*.nav
+docs/entrega/*.snm
+
+# Editor directories and files
+.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store

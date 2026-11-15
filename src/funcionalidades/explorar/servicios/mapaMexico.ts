@@ -13,8 +13,13 @@ function margenNacional(container: HTMLElement) {
 }
 export function ajustarVista(map: Map, limites: Limites, animar = true) {
   const container = map.getContainer()
+  if (!container.clientWidth || !container.clientHeight) return
   const nacional = limites.every((valor, index) => valor === limitesMexico[index])
-  map.fitBounds(limites, { padding: nacional ? margenNacional(container) : container.clientWidth < 500 ? 24 : 45, maxZoom: 10, bearing: 0, pitch: 0,
+  const margen = nacional ? margenNacional(container) : container.clientWidth < 500 ? 24 : 45
+  const barra = container.closest('.explorer-workspace')?.querySelector('.map-liquid-toolbar')
+  const espacioSuperior = barra ? barra.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 12 : margen
+  const padding = { top: Math.max(margen, Math.min(container.clientHeight / 2, espacioSuperior)), bottom: margen, left: margen, right: margen }
+  map.fitBounds(limites, { padding, maxZoom: 10, bearing: 0, pitch: 0,
     duration: animar && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 650 : 0 })
 }
 export function crearMapa(container: HTMLDivElement) {
@@ -22,7 +27,7 @@ export function crearMapa(container: HTMLDivElement) {
   setWorkerUrl(workerUrl)
   const map = new Map({
     container,
-    style: { version: 8, sources: {}, layers: [{ id: 'fondo', type: 'background', paint: { 'background-color': '#aad3df' } }] },
+    style: { version: 8, sources: {}, layers: [{ id: 'fondo', type: 'background', paint: { 'background-color': '#101f29' } }] },
     bounds: limitesMexico,
     fitBoundsOptions: { padding: margenNacional(container) },
     maxBounds: limitesNavegacion,
@@ -41,12 +46,15 @@ export function crearMapa(container: HTMLDivElement) {
   return map
 }
 
-export function agregarCapas(map: Map, geografia: GeografiaMexico) {
+export function agregarRelieve(map: Map) {
   map.addSource('relieve', {
-    type: 'raster', tiles: teselasRelieve, tileSize: 256, maxzoom: 12,
+    type: 'raster', tiles: teselasRelieve, tileSize: 256, maxzoom: 12, bounds: limitesNavegacion,
     attribution: 'Relieve: SRTM/NASA · <a href="https://www.mundialis.de/en/software/web-map-services-wms/" target="_blank" rel="noreferrer">mundialis</a> · <a href="https://terrestris.de/en/products/free-osm-wms/" target="_blank" rel="noreferrer">terrestris</a>',
   })
-  map.addLayer({ id: 'relieve', source: 'relieve', type: 'raster', paint: { 'raster-saturation': -.2, 'raster-opacity': 1 } })
+  map.addLayer({ id: 'relieve', source: 'relieve', type: 'raster', paint: { 'raster-saturation': -.55, 'raster-brightness-max': .55, 'raster-opacity': 1, 'raster-fade-duration': 100 } })
+}
+
+export function agregarCapas(map: Map, geografia: GeografiaMexico) {
   const etiquetas: FeatureCollection<Point> = { type: 'FeatureCollection', features: geografia.catalogo.map(entidad => ({
     type: 'Feature', id: entidad.clave, properties: { clave: entidad.clave, nombre: entidad.nombre }, geometry: { type: 'Point', coordinates: entidad.etiqueta },
   })) }
@@ -54,22 +62,22 @@ export function agregarCapas(map: Map, geografia: GeografiaMexico) {
   map.addSource('etiquetas-estados', { type: 'geojson', data: etiquetas })
   map.addSource('municipios', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: .2 })
   map.addLayer({ id: 'estados-relleno', source: 'estados', type: 'fill', paint: {
-    'fill-color': ['case', ['boolean', ['feature-state', 'seleccionado'], false], '#c7923b', ['boolean', ['feature-state', 'hover'], false], '#c79a56', '#e8e3cc'],
+    'fill-color': ['case', ['boolean', ['feature-state', 'seleccionado'], false], '#6fadd6', ['boolean', ['feature-state', 'hover'], false], '#3c617a', '#253f50'],
     'fill-opacity': opacidadEstados,
   } })
   map.addLayer({ id: 'municipios-relleno', source: 'municipios', type: 'fill', paint: {
-    'fill-color': '#d99038',
+    'fill-color': '#d66f79',
     'fill-opacity': ['case', ['boolean', ['feature-state', 'seleccionado'], false], .17, .01],
   } })
-  map.addLayer({ id: 'municipios-linea', source: 'municipios', type: 'line', paint: { 'line-color': '#71654e', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, .5, 11, 1.3], 'line-opacity': .8 } })
-  map.addLayer({ id: 'estados-linea', source: 'estados', type: 'line', paint: { 'line-color': '#635c47', 'line-width': ['interpolate', ['linear'], ['zoom'], 3, .8, 8, 1.6] } })
-  map.addLayer({ id: 'estado-seleccionado', source: 'estados', type: 'line', filter: ['==', ['get', 'clave'], ''], paint: { 'line-color': '#a65e28', 'line-width': 2.5 } })
-  map.addLayer({ id: 'municipio-seleccionado', source: 'municipios', type: 'line', filter: ['==', ['get', 'clave'], ''], paint: { 'line-color': '#af5425', 'line-width': 2.6 } })
+  map.addLayer({ id: 'municipios-linea', source: 'municipios', type: 'line', paint: { 'line-color': '#5586a7', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, .5, 11, 1.3], 'line-opacity': .8 } })
+  map.addLayer({ id: 'estados-linea', source: 'estados', type: 'line', paint: { 'line-color': '#3c617a', 'line-width': ['interpolate', ['linear'], ['zoom'], 3, .8, 8, 1.6] } })
+  map.addLayer({ id: 'estado-seleccionado', source: 'estados', type: 'line', filter: ['==', ['get', 'clave'], ''], paint: { 'line-color': '#d66f79', 'line-width': 2.5 } })
+  map.addLayer({ id: 'municipio-seleccionado', source: 'municipios', type: 'line', filter: ['==', ['get', 'clave'], ''], paint: { 'line-color': '#d66f79', 'line-width': 2.6 } })
   map.addLayer({ id: 'municipios-etiquetas', source: 'municipios', type: 'symbol', minzoom: 7, layout: {
     'text-field': ['get', 'nombre'], 'text-font': ['Arial'], 'text-size': 12, 'text-max-width': 10, 'text-padding': 8,
-  }, paint: { 'text-color': '#343b2d', 'text-halo-color': '#fff9e8', 'text-halo-width': 1.6 } })
+  }, paint: { 'text-color': '#e9f2fa', 'text-halo-color': '#101f29', 'text-halo-width': 1.6 } })
   map.addLayer({ id: 'estados-etiquetas', source: 'etiquetas-estados', type: 'symbol', layout: {
     'text-field': ['get', 'nombre'], 'text-font': ['Arial'], 'text-size': ['interpolate', ['linear'], ['zoom'], 3, 10, 7, 14],
     'text-max-width': 8, 'text-padding': 5,
-  }, paint: { 'text-color': '#343b2d', 'text-halo-color': '#fff9e8', 'text-halo-width': 2 } })
+  }, paint: { 'text-color': '#e9f2fa', 'text-halo-color': '#101f29', 'text-halo-width': 2 } })
 }

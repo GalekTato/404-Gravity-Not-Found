@@ -1,93 +1,102 @@
-import { lazy, Suspense, useCallback, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import type { PointerEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { SelectorIdioma } from '../../../configuracion/idioma'
+import { useIdioma } from '../../../configuracion/idiomaContexto'
+import { proyecto } from '../../../configuracion/proyecto'
+import { MiniTutorial } from '../../../componentes/ui/MiniTutorial'
+import { Icon } from '../../../componentes/ui/Icon'
 import { GlobeControls } from '../componentes/GlobeControls'
+import { TimeMapBar } from '../componentes/TimeMapBar'
 import { RegionInfoPanel } from '../componentes/RegionInfoPanel'
 import { TimeMapBar } from '../componentes/TimeMapBar'
 import { useGeografia, useMunicipios } from '../hooks/useGeografia'
-import type { TipoDesastre } from '../servicios/predicciones'
+import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
+import { exportarExcel } from '../servicios/exportar'
 import type { EstadoCapaMunicipal, EstadoPredicciones, MapaHandle } from '../tipos/cartografia'
 
 const MexicoMap = lazy(() => import('../componentes/MexicoMap').then(module => ({ default: module.MexicoMap })))
 
 export function ExplorarPage() {
+  const { t } = useIdioma()
   const { datos, error, reintentar } = useGeografia()
   const mapaRef = useRef<MapaHandle>(null)
+  const herramientasRef = useRef<HTMLDetailsElement>(null)
   const [disponible, setDisponible] = useState(false)
-  const [claveEntidad, setClaveEntidad] = useState<string>()
+  const { periodo: fechaPrediccion, estado: claveEntidad, tipo: tipoPrediccion, setPeriodo: setFechaPrediccion,
+    setEstado: setClaveEntidad, setTipo: setTipoPrediccion, consulta } = useFiltrosCatalogo()
   const [claveMunicipio, setClaveMunicipio] = useState<string>()
   const [mostrarLimites, setMostrarLimites] = useState(true)
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true)
-  const [mostrarPredicciones, setMostrarPredicciones] = useState(true)
-  const [fechaPrediccion, setFechaPrediccion] = useState('2026-11')
-  const [tipoPrediccion, setTipoPrediccion] = useState<TipoDesastre>()
   const [estadoPredicciones, setEstadoPredicciones] = useState<EstadoPredicciones>({ estado: 'inactivo' })
   const [intentoPredicciones, setIntentoPredicciones] = useState(0)
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [estadoCapaMunicipal, setEstadoCapaMunicipal] = useState<EstadoCapaMunicipal>()
+  const [exportando, setExportando] = useState(false)
+  const [errorExportacion, setErrorExportacion] = useState(false)
   const entidad = datos?.catalogo.find(item => item.clave === claveEntidad)
   const municipales = useMunicipios(entidad?.clave)
-  const dibujandoMunicipios = !!municipales.datos && (estadoCapaMunicipal?.clave !== entidad?.clave || estadoCapaMunicipal?.estado === 'cargando')
-  const errorCapaMunicipal = estadoCapaMunicipal?.clave === entidad?.clave ? estadoCapaMunicipal?.mensaje : undefined
+  const dibujando = !!municipales.datos && (estadoCapaMunicipal?.clave !== entidad?.clave || estadoCapaMunicipal?.estado === 'cargando')
   const municipio = municipales.datos?.features.find(item => item.properties.clave === claveMunicipio)
-  const seleccionarEntidad = useCallback((clave: string) => { setClaveEntidad(clave || undefined); setClaveMunicipio(undefined) }, [])
-  const seleccionarMunicipio = useCallback((clave: string) => {
-    if (!clave || clave.startsWith(claveEntidad ?? '-')) setClaveMunicipio(clave || undefined)
-  }, [claveEntidad])
+  const seleccionarEntidad = useCallback((clave: string) => { setClaveEntidad(clave || undefined); setClaveMunicipio(undefined) }, [setClaveEntidad])
+  const seleccionarMunicipio = useCallback((clave: string) => { if (!clave || clave.startsWith(claveEntidad ?? '-')) setClaveMunicipio(clave || undefined) }, [claveEntidad])
+  useEffect(() => {
+    function cerrar(event: globalThis.PointerEvent | KeyboardEvent) {
+      const menu = herramientasRef.current
+      if (!menu?.open) return
+      if (event instanceof KeyboardEvent) {
+        if (document.querySelector('dialog[open]')) return
+        if (event.key === 'Escape') { menu.open = false; menu.querySelector('summary')?.focus() }
+      } else if (event.target instanceof Node && !menu.contains(event.target)) menu.open = false
+    }
+    document.addEventListener('pointerdown', cerrar)
+    document.addEventListener('keydown', cerrar)
+    return () => { document.removeEventListener('pointerdown', cerrar); document.removeEventListener('keydown', cerrar) }
+  }, [])
+  function reflejo(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    event.currentTarget.style.setProperty('--glass-x', `${event.clientX - rect.left}px`)
+    event.currentTarget.style.setProperty('--glass-y', `${event.clientY - rect.top}px`)
+  }
   function restablecer() { seleccionarEntidad(''); mapaRef.current?.restablecer() }
-  function zoom(delta: number) { mapaRef.current?.zoom(delta) }
-
-  return (
-    <section className={`explorer-fullscreen${mostrarPredicciones ? ' con-predicciones' : ''}`} aria-label="Explorador geográfico de México">
-      <h1 className="sr-only">Mapa de México</h1>
-      <div className="map-canvas-wrapper">
-        {datos ? <Suspense fallback={<div className="map-stage map-loading" role="status">Cargando el mapa…</div>}>
-          <MexicoMap ref={mapaRef} geografia={datos} entidad={entidad} municipios={municipales.datos}
-            municipio={claveMunicipio} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio}
-            mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios}
-            mostrarPredicciones={mostrarPredicciones} fechaPrediccion={fechaPrediccion}
-            tipoPrediccion={tipoPrediccion}
-            intentoPredicciones={intentoPredicciones} estadoPredicciones={estadoPredicciones}
-            onEstadoPredicciones={setEstadoPredicciones}
-            onReadyChange={setDisponible}
-            onEstadoCapaMunicipal={setEstadoCapaMunicipal}/>
-        </Suspense> : <div className="map-stage map-loading" role={error ? 'alert' : 'status'}>
-          <p>{error ?? 'Cargando las 32 entidades de México…'}</p>
-          {error && <button className="button button-primary" onClick={reintentar}>Volver a intentar</button>}
-        </div>}
-        <GlobeControls disabled={!disponible} onZoom={zoom} onReset={restablecer}/>
-      </div>
-      <header className="explorer-toolbar">
-        <div className="explorer-tools">
-          <button className="territory-toggle" aria-expanded={panelAbierto} aria-controls="panel-territorio" onClick={() => setPanelAbierto(value => !value)}>
-            {panelAbierto ? 'Cerrar panel' : 'Estados y municipios'} <span aria-hidden="true">{panelAbierto ? '×' : '+'}</span>
-          </button>
-          <div className="map-layer-toggles">
-            <label className="toggle-label"><input type="checkbox" checked={mostrarLimites} onChange={e => setMostrarLimites(e.target.checked)}/> Estados</label>
-            <label className="toggle-label"><input type="checkbox" checked={mostrarMunicipios} onChange={e => setMostrarMunicipios(e.target.checked)}/> Municipios</label>
-            <label className="toggle-label"><input type="checkbox" checked={mostrarPredicciones} onChange={e => setMostrarPredicciones(e.target.checked)}/> TimeMap</label>
-            {mostrarPredicciones && estadoPredicciones.estado === 'cargando'
-              && <span className="prediction-status" role="status">Consultando…</span>}
-            {mostrarPredicciones && estadoPredicciones.estado === 'error'
-              && <button type="button" className="prediction-retry" title={estadoPredicciones.mensaje}
-                aria-label={`Reintentar predicciones. ${estadoPredicciones.mensaje}`}
-                onClick={() => setIntentoPredicciones(valor => valor + 1)}>Reintentar</button>}
+  async function descargar() {
+    setExportando(true); setErrorExportacion(false)
+    try { await exportarExcel(fechaPrediccion, tipoPrediccion, claveEntidad) } catch { setErrorExportacion(true) } finally { setExportando(false) }
+  }
+  return <section className="explorer-workspace" aria-label={t('Explorador de México', 'Mexico explorer')}>
+    <header className="map-liquid-toolbar" onPointerMove={reflejo}>
+      <Link to="/" className="project-brand"><img src={proyecto.logoEquipo} alt={proyecto.equipo} width="36" height="36"/><h1>{proyecto.nombre}</h1></Link>
+      <label className="state-filter"><span>{t('Territorio', 'Area')}</span><select aria-label={t('Filtrar por estado', 'Filter by state')} value={claveEntidad ?? ''} disabled={!datos} onChange={event => seleccionarEntidad(event.target.value)}><option value="">{t('Todo México', 'All Mexico')}</option>{datos?.catalogo.map(item => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}</select></label>
+      <div className="map-header-actions"><MiniTutorial/><SelectorIdioma/>
+        <details className="map-tools-menu" ref={herramientasRef}>
+          <summary aria-label={t('Herramientas del mapa', 'Map tools')}><Icon name="menu" size={19}/><span>{t('Herramientas', 'Tools')}</span></summary>
+          <div className="map-tools-content">
+            <div className="mobile-map-guide"><MiniTutorial/></div>
+            <button className="quiet-button" aria-expanded={panelAbierto} aria-controls="panel-territorio" onClick={() => { setPanelAbierto(value => !value); if (herramientasRef.current) herramientasRef.current.open = false }}>{panelAbierto ? t('Cerrar detalle', 'Close details') : t('Municipios y capas', 'Municipalities & layers')}</button>
+            <Link className="quiet-button" to={`/observar?${consulta}`}>{t('Ver registros', 'View records')}</Link>
+            <button className="export-button" disabled={!fechaPrediccion || exportando} onClick={() => void descargar()}>{exportando ? t('Exportando…', 'Exporting…') : t('↓ Exportar Excel', '↓ Export Excel')}</button>
           </div>
-        </div>
-      </header>
-      {mostrarPredicciones && (
-        <TimeMapBar
-          periodo={fechaPrediccion}
-          tipoFiltro={tipoPrediccion}
-          onChangePeriodo={setFechaPrediccion}
-          onChangeTipoFiltro={setTipoPrediccion}
-        />
-      )}
-      <div id="panel-territorio" className="explorer-panel" hidden={!panelAbierto}>
-        <RegionInfoPanel catalogo={datos?.catalogo ?? []} entidad={entidad} municipios={municipales.datos}
-          municipio={municipio} cargando={municipales.cargando || dibujandoMunicipios} dibujando={dibujandoMunicipios}
-          error={municipales.error ?? errorCapaMunicipal}
-          onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio} onReintentar={municipales.reintentar} onReset={restablecer}/>
-        <p className="territory-disclaimer">Áreas geoestadísticas sin valor de límite político-administrativo legal. Sin observaciones NISAR.</p>
+        </details>
       </div>
-    </section>
-  )
+    </header>
+    <div className={`explorer-map-body${panelAbierto ? ' has-panel' : ''}`}>
+      {panelAbierto && <aside id="panel-territorio" className="map-sidebar">
+        <div className="map-layer-toggles"><label><input type="checkbox" checked={mostrarLimites} onChange={event => setMostrarLimites(event.target.checked)}/>{t('Estados', 'States')}</label><label><input type="checkbox" checked={mostrarMunicipios} onChange={event => setMostrarMunicipios(event.target.checked)}/>{t('Municipios', 'Municipalities')}</label></div>
+        <RegionInfoPanel catalogo={datos?.catalogo ?? []} entidad={entidad} municipios={municipales.datos} municipio={municipio} cargando={municipales.cargando || dibujando} dibujando={dibujando}
+          error={municipales.error ?? (estadoCapaMunicipal?.clave === claveEntidad ? estadoCapaMunicipal?.mensaje : undefined)} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio} onReintentar={municipales.reintentar} onReset={restablecer}/>
+      </aside>}
+      <div className="map-canvas-wrapper">
+        <Suspense fallback={<div className="map-loading" role="status">{t('Cargando mapa…', 'Loading map…')}</div>}><MexicoMap ref={mapaRef} geografia={datos} entidad={entidad} municipios={municipales.datos} municipio={claveMunicipio}
+          mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios} mostrarPredicciones fechaPrediccion={fechaPrediccion || undefined} tipoPrediccion={tipoPrediccion} intentoPredicciones={intentoPredicciones}
+          onEstadoPredicciones={setEstadoPredicciones} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio} onReadyChange={setDisponible} onEstadoCapaMunicipal={setEstadoCapaMunicipal}/></Suspense>
+        <GlobeControls disabled={!disponible} onZoom={delta => mapaRef.current?.zoom(delta)} onReset={restablecer}/>
+      </div>
+    </div>
+    <div className="map-data-status" role="status"><span>{entidad?.nombre ?? t('Todo México', 'All Mexico')} · {estadoPredicciones.estado === 'listo' ? `${estadoPredicciones.total} ${t(estadoPredicciones.total === 1 ? 'registro' : 'registros', estadoPredicciones.total === 1 ? 'record' : 'records')}` : estadoPredicciones.estado === 'error' ? t('Error de conexión', 'Connection error') : t('Consultando…', 'Loading…')}
+      {estadoPredicciones.estado === 'error' && <button onClick={() => setIntentoPredicciones(value => value + 1)}>{t('Reintentar', 'Retry')}</button>}</span><span>{t('Indicadores, no alertas oficiales', 'Indicators, not official alerts')}</span>
+      {!datos && <span role={error ? 'alert' : 'status'}>{error ? <button onClick={reintentar}>{t('Reintentar cartografía', 'Retry boundaries')}</button> : t('Cargando cartografía…', 'Loading boundaries…')}</span>}
+      {errorExportacion && <span role="alert">{t('No se pudo exportar. Reintenta.', 'Export failed. Please retry.')}</span>}</div>
+    <TimeMapBar periodo={fechaPrediccion} tipoFiltro={tipoPrediccion} estadoFiltro={claveEntidad} onChangePeriodo={setFechaPrediccion} onChangeTipoFiltro={setTipoPrediccion}/>
+  </section>
 }

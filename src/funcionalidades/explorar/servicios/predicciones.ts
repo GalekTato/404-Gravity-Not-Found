@@ -19,6 +19,17 @@ export const COLORES_DESASTRE: Record<TipoDesastre, string> = {
   incendio: '#f97316',
 }
 
+export function etiquetaAmenaza(tipo: TipoDesastre, idioma: 'es' | 'en') {
+  const english = { sismo: 'Earthquake', huracan: 'Hurricane', sequia: 'Drought', inundacion: 'Flood', incendio: 'Fire' }
+  return idioma === 'es' ? ETIQUETAS_DESASTRE[tipo] : english[tipo]
+}
+
+export function etiquetaEvidencia(evidencia: PropiedadesDesastre['evidence'], idioma: 'es' | 'en') {
+  const es = { observed: 'Observada', supervised: 'Supervisada', proxy: 'Indicador indirecto', no_confirmable: 'No confirmable' }
+  const en = { observed: 'Observed', supervised: 'Supervised', proxy: 'Proxy indicator', no_confirmable: 'Not confirmable' }
+  return (idioma === 'es' ? es : en)[evidencia ?? 'no_confirmable']
+}
+
 export interface PropiedadesDesastre {
   id: string
   name: string
@@ -136,6 +147,7 @@ export async function obtenerPredicciones(
   fechaOPeriodo?: string,
   signal?: AbortSignal,
   tipo?: TipoDesastre,
+  estado?: string,
 ): Promise<ColeccionPredicciones> {
   const params: string[] = []
   if (fechaOPeriodo) {
@@ -148,6 +160,7 @@ export async function obtenerPredicciones(
   if (tipo) {
     params.push(`type=${encodeURIComponent(tipo)}`)
   }
+  if (estado) params.push(`state=${encodeURIComponent(estado)}`)
   const url = params.length > 0 ? `${API_PREDICCIONES}?${params.join('&')}` : API_PREDICCIONES
   let respuesta: Response
   try {
@@ -172,8 +185,12 @@ export async function obtenerPredicciones(
 export async function obtenerTimeMap(
   tipo?: TipoDesastre,
   signal?: AbortSignal,
+  estado?: string,
 ): Promise<ResumenTimeMap> {
-  const url = tipo ? `${API_TIMEMAP}?type=${encodeURIComponent(tipo)}` : API_TIMEMAP
+  const params = new URLSearchParams()
+  if (tipo) params.set('type', tipo)
+  if (estado) params.set('state', estado)
+  const url = `${API_TIMEMAP}${params.size ? `?${params}` : ''}`
   let respuesta: Response
   try {
     respuesta = await fetch(url, { signal, headers: { Accept: 'application/json' } })
