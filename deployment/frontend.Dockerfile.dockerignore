@@ -1,0 +1,8 @@
+.git
+.taste-skill
+node_modules
+dist
+404-Gravity-Not-Found-back
+404-Gravity-Not-Found-integration
+.env*
+docs

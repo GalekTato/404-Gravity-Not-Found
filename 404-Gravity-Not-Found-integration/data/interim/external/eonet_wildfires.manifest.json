@@ -1,0 +1,12 @@
+{
+  "coverage": {
+    "bbox": "-119.0,33.0,-86.0,14.0",
+    "end_time": "2026-12-31",
+    "region": "Mexico bounding box",
+    "start_time": "2010-01-01"
+  },
+  "retrieved_at": "2026-11-15T08:25:12.345128+00:00",
+  "sha256": "f8233817d1eec01cf1f81e1c4a737f17c498b86e6ef47f8f97f58229d92ef264",
+  "source": "NASA EONET v3 Historical Wildfires",
+  "url": "https://eonet.gsfc.nasa.gov/api/v3/events?category=wildfires&status=all&start=2010-01-01&end=2026-12-31&bbox=-119.0%2C33.0%2C-86.0%2C14.0"
+}

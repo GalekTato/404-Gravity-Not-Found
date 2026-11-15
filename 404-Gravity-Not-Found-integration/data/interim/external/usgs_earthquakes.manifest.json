@@ -1,0 +1,12 @@
+{
+  "coverage": {
+    "end_time": "2026-12-31",
+    "min_magnitude": 4.0,
+    "region": "Mexico bounding box",
+    "start_time": "2010-01-01"
+  },
+  "retrieved_at": "2026-11-15T08:25:07.390914+00:00",
+  "sha256": "4625573e14c14df31328cae148c87b67f98ab085a052bee966de4ba54f27c6cd",
+  "source": "USGS Earthquake Catalog",
+  "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2010-01-01&endtime=2026-12-31&minlatitude=14.0&maxlatitude=33.0&minlongitude=-119.0&maxlongitude=-86.0&minmagnitude=4.0&orderby=time-asc&limit=20000"
+}

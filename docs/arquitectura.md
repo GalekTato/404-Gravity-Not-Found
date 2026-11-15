@@ -1,4 +1,4 @@
-﻿# Arquitectura y evolución
+# Arquitectura y evolución
 
 `app` compone las rutas; `componentes/estructura` contiene el layout. Los módulos en `funcionalidades` mantienen páginas, componentes, hooks, servicios y tipos según sus responsabilidades. Las carpetas se crean cuando tienen contenido funcional, sin adaptadores científicos simulados.
 
@@ -26,19 +26,15 @@ Los archivos del INEGI se sirven desde `public/geojson`, sin consultas externas 
 
 La copia contiene 32 entidades y 2,478 municipios/demarcaciones del Marco Geoestadístico de diciembre de 2025. Son áreas geoestadísticas, no límites político-administrativos con valor legal. Las fuentes, transformaciones y condiciones están en `public/geojson/README.md` y `procedencia.json`. La cartografía ocupa unos 113 MB sin compresión; el archivo nacional unos 24 MB. La carga municipal por entidad evita transferir el conjunto completo. Para publicación futura se recomienda compresión HTTP y evaluar teselas vectoriales a mayor escala.
 
-## Predicciones del backend
-
-`servicios/predicciones.ts` consume `GET /api/predictions/?date=YYYY-MM-DD` y valida que la respuesta sea un `FeatureCollection` de puntos con tipo, severidad, radio y fecha. `PredictionMarkers` crea la fuente `predicciones-source` y las capas `predicciones-halo`/`predicciones-puntos` solo cuando el mapa está listo; actualiza la fuente al cambiar de fecha y alterna su visibilidad sin recrear el motor. Los colores y etiquetas por tipo se comparten con la leyenda del mapa. Cada clic abre un popup con el detalle y no selecciona el estado que queda debajo.
-
-El estado de la consulta (`inactivo`, `cargando`, `listo` o `error`) se levanta a `ExplorarPage` mediante `onEstadoPredicciones`. La barra del mapa muestra la fecha, el estado de carga y un reintento; si el backend no responde, los límites locales y el relieve siguen operativos. Vite reenvía `/api` a `http://127.0.0.1:8000` en desarrollo; `VITE_API_PREDICCIONES` permite apuntar a otro endpoint. Los eventos son simulados y no son alertas oficiales.
-
 ## PWA y entorno
+
+El relieve se incorpora al evento `style.load` y se solicita en paralelo al GeoJSON nacional. El mapa se monta sin esperar los límites; un aviso independiente informa sobre su carga o permite reintentarla sin ocultar el relieve. Las fuentes vectoriales se agregan cuando la geografía está validada. La fuente raster limita las solicitudes al área de navegación y reduce la transición de aparición a 100 ms. Se conserva el proveedor WMS y su política HTTP de caché, sin descargar teselas de forma anticipada ni añadir almacenamiento masivo. La latencia inicial del proveedor sigue siendo externa a la aplicación.
 
 Se conserva vite-plugin-pwa y el manifiesto. El shell y los bundles se precachean; los GeoJSON se excluyen de la descarga masiva y se cachean bajo demanda con NetworkFirst, 40 entradas y 30 días. El uso sin conexión requiere visitas previas a los datos correspondientes. Las cachés antiguas de Cesium ya no se usan. El desarrollo actual se realiza en localhost y no se publica en Sites.
 
 ## Escena espacial de Inicio
 
-`SpaceGlobe` administra el montaje, errores, controles y preferencia de movimiento reducido. `escenaEspacial.ts` crea un globo texturizado con cámara inicialmente orientada a México, halo atmosférico, estrellas con semilla determinista, plano orbital y rastro. `modeloNisar.ts` construye una representación original con cuerpo, paneles solares, brazo y reflector. El satélite queda oculto correctamente detrás de la esfera y su rótulo se proyecta a pantalla, limitado al contenedor. La cámara se aleja en formatos verticales para encuadrar el recorrido.
+`SpaceGlobe` administra el montaje, errores, controles y preferencia de movimiento reducido. `escenaEspacial.ts` crea un globo texturizado con cámara inicialmente orientada a México, halo atmosférico, estrellas con semilla determinista, plano orbital y rastro. `modeloNisar.ts` construye una representación original con cuerpo, paneles solares, brazo y reflector. El satélite queda oculto correctamente detrás de la esfera y se muestra sin rótulo flotante. La escena cubre todo el bloque superior, incluidas las estrellas detrás del texto; un encuadre desplazado mantiene el globo en su columna y se adapta al diseño móvil. La cámara se aleja en formatos verticales para encuadrar el recorrido.
 
 La órbita circular, velocidad, orientación y tamaño del modelo son recursos visuales, no parámetros de ingeniería ni una efeméride. Se indica en la interfaz que no hay telemetría en tiempo real. La textura local de NASA es un mosaico Blue Marble: Next Generation de julio de 2004, con su procedencia documentada y enlace de crédito visible.
 
@@ -46,7 +42,9 @@ La interacción usa OrbitControls, teclado y botones. Se respetan pausa y movimi
 
 ## Observaciones y aprendizaje
 
-`ObservacionesRepository` sigue siendo un contrato para una futura API con cancelación. No hay backend, datos SAR ni observaciones NISAR simuladas. Filtros, vista SAR y metadatos tienen responsabilidades separadas. Aprendamos conserva el catálogo editorial en preparación.
+`FondoEstelar`, montado desde `MainLayout`, comparte un fondo negro con estrellas en Inicio, Observaciones, Aprendamos y la página 404. El explorador del mapa queda excluido. Utiliza canvas 2D, brillo animado y desplazamiento sutil con el puntero, sin interceptar controles ni añadir escenas 3D. Limita el dibujo a 24 fps y densidad 1.5, detiene la animación con movimiento reducido o pestaña oculta y libera sus recursos al desmontarse.
+
+`ObservacionesPage` consulta el catálogo de indicadores mediante el cliente validado `predicciones.ts`, comparte parámetros de mes, entidad y fenómeno con el mapa y exporta el mismo subconjunto como Excel. El contrato `ObservacionesRepository` queda reservado para una futura API de imágenes SAR; esa API no se implementa en esta entrega. Aprende contiene lecciones de interpretación y una actividad con retroalimentación. El nuevo sistema visual y las instrucciones de ejecución se documentan en `docs/entrega/documento-tecnico.tex` y `deployment/README.md`.
 
 ## Verificación
 

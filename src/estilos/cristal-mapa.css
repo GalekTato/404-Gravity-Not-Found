@@ -1,0 +1,126 @@
+/* Floating controls leave the map visible behind the toolbar. */
+.explorer-workspace {
+  position: relative;
+  grid-template-rows: minmax(260px, 1fr) auto auto;
+}
+.map-liquid-toolbar {
+  --glass-x: 50%;
+  --glass-y: 0px;
+  --glass-ink: var(--azul-50);
+  position: absolute;
+  inset: 16px 16px auto;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 64px;
+  padding: 10px 14px;
+  color: var(--glass-ink);
+  color-scheme: dark;
+  background: color-mix(in srgb, var(--azul-950) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--azul-200) 28%, transparent);
+  border-radius: 18px;
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--azul-950) 24%, transparent), inset 0 1px 0 color-mix(in srgb, var(--azul-50) 12%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(145%);
+  isolation: isolate;
+  transition: background .25s, border-color .25s, box-shadow .25s;
+}
+.map-liquid-toolbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(220px 95px at var(--glass-x) var(--glass-y), color-mix(in srgb, var(--azul-50) 17%, transparent), transparent 75%), linear-gradient(115deg, color-mix(in srgb, var(--azul-400) 6%, transparent), transparent 40%, color-mix(in srgb, var(--rosa-300) 5%, transparent));
+  opacity: .3;
+  transition: opacity .25s;
+}
+.map-liquid-toolbar:hover,.map-liquid-toolbar:focus-within {
+  border-color: color-mix(in srgb, var(--azul-200) 52%, transparent);
+  background: color-mix(in srgb, var(--azul-950) 81%, transparent);
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--azul-950) 30%, transparent), inset 0 1px 0 color-mix(in srgb, var(--azul-50) 24%, transparent);
+}
+.map-liquid-toolbar:hover::before,.map-liquid-toolbar:focus-within::before { opacity: 1; }
+.map-liquid-toolbar .project-brand { flex-shrink: 0; gap: 10px; }
+.map-liquid-toolbar .project-brand img { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; }
+.map-liquid-toolbar .project-brand h1 { font-size: 18px; }
+.map-liquid-toolbar .state-filter { min-width: 0; }
+.map-liquid-toolbar .state-filter>span { display: none; }
+.map-liquid-toolbar .state-filter select {
+  width: min(250px, 24vw);
+  height: 42px;
+  border-color: color-mix(in srgb, var(--azul-200) 22%, transparent);
+  background: color-mix(in srgb, var(--azul-50) 5%, transparent);
+  color: var(--glass-ink);
+  border-radius: 10px;
+}
+.map-liquid-toolbar select option { background: var(--azul-950); color: var(--azul-50); }
+.map-liquid-toolbar .map-header-actions { margin-left: auto; gap: 8px; }
+.map-liquid-toolbar .quiet-button,.map-tools-menu summary {
+  min-height: 42px;
+  color: var(--glass-ink);
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.map-liquid-toolbar .quiet-button:hover,.map-tools-menu summary:hover {
+  background: color-mix(in srgb, var(--azul-50) 9%, transparent);
+  border-color: color-mix(in srgb, var(--azul-200) 16%, transparent);
+}
+.map-liquid-toolbar .language-switch { border-color: color-mix(in srgb, var(--azul-200) 20%, transparent); border-radius: 10px; }
+.map-liquid-toolbar .language-switch button { min-height: 40px; min-width: 38px; color: var(--azul-200); }
+.map-liquid-toolbar .language-switch button[aria-pressed=true] { background: color-mix(in srgb, var(--azul-200) 19%, transparent); color: var(--azul-50); }
+.map-liquid-toolbar :focus-visible { outline-color: var(--azul-400); }
+.map-tools-menu { position: relative; }
+.map-tools-menu summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.map-tools-menu summary::-webkit-details-marker { display: none; }
+.map-tools-menu[open] summary { background: color-mix(in srgb, var(--azul-200) 14%, transparent); }
+.map-tools-content {
+  position: absolute;
+  top: calc(100% + 18px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--azul-200) 28%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--azul-950) 96%, transparent);
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--azul-950) 35%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+.map-tools-content .quiet-button,.map-tools-content .export-button { width: 100%; min-height: 44px; justify-content: flex-start; }
+.map-tools-content .export-button { margin-top: 4px; border-radius: 10px; font-size: 12px; }
+.mobile-map-guide { display: none; }
+.explorer-workspace .globe-controls { top: 96px; }
+.explorer-workspace .map-sidebar { padding-top: 96px; }
+.explorer-workspace .map-base-notice { top: 96px; }
+@supports not (backdrop-filter: blur(1px)) {
+  .map-liquid-toolbar,.map-tools-content { background: var(--azul-950); }
+}
+@media (max-width: 760px) {
+  .map-liquid-toolbar { inset: 10px 10px auto; padding: 8px 10px; gap: 8px; border-radius: 16px; flex-wrap: wrap; }
+  .map-liquid-toolbar .project-brand { margin-right: auto; }
+  .map-liquid-toolbar .map-header-actions { gap: 2px; margin-left: 0; }
+  .map-liquid-toolbar .map-header-actions>.quiet-button { display: none; }
+  .map-liquid-toolbar .state-filter { order: 3; width: 100%; }
+  .map-liquid-toolbar .state-filter select { width: 100%; max-width: none; min-height: 44px; }
+  .map-tools-menu summary { min-width: 40px; min-height: 44px; padding: 8px 10px; }
+  .map-tools-menu summary>span { display: none; }
+  .map-tools-content { top: calc(100% + 68px); right: -2px; }
+  .mobile-map-guide { display: block; }
+  .map-liquid-toolbar .language-switch button { min-height: 40px; min-width: 34px; }
+  .explorer-workspace .globe-controls { top: 142px; }
+  .explorer-workspace .map-sidebar { padding-top: 140px; }
+  .explorer-workspace .map-base-notice { top: 142px; }
+}
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  .map-liquid-toolbar,.map-liquid-toolbar::before { transition: none; }
+  .map-liquid-toolbar::before { background: linear-gradient(115deg, color-mix(in srgb,var(--azul-400) 6%,transparent), transparent); }
+}

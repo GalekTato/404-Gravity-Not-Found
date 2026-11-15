@@ -1,68 +1,46 @@
 import { useEffect, useRef } from 'react'
-import { Popup, type ExpressionSpecification, type GeoJSONSource, type Map, type MapMouseEvent } from 'maplibre-gl'
+import { useIdioma } from '../../../configuracion/idiomaContexto'
+import { Popup, type GeoJSONSource, type Map, type MapMouseEvent } from 'maplibre-gl'
+import { registrarIconosAmenaza } from '../servicios/iconosAmenazaMapa'
+import { contenidoPopup } from '../servicios/fichaIndicador'
 import type { SesionMapa } from '../hooks/useMapaMexico'
 import {
-  COLORES_DESASTRE,
-  ETIQUETAS_DESASTRE,
   esTipoDesastre,
   obtenerPredicciones,
 } from '../servicios/predicciones'
-import type { PropiedadesDesastre } from '../servicios/predicciones'
+import type { PropiedadesDesastre, TipoDesastre } from '../servicios/predicciones'
 import type { EstadoPredicciones } from '../tipos/cartografia'
 
 const FUENTE = 'predicciones-source'
-const CAPA_HALO = 'predicciones-halo'
 const CAPA_PUNTOS = 'predicciones-puntos'
 
-const COLOR_TIPO: ExpressionSpecification = [
-  'match', ['get', 'type'],
-  'sismo', COLORES_DESASTRE.sismo,
-  'huracan', COLORES_DESASTRE.huracan,
-  'sequia', COLORES_DESASTRE.sequia,
-  'inundacion', COLORES_DESASTRE.inundacion,
-  'incendio', COLORES_DESASTRE.incendio,
-  '#ffffff',
-]
-
-const RADIO_HALO: ExpressionSpecification = ['interpolate', ['linear'], ['get', 'severity'], 1, 12, 10, 28]
-const RADIO_PUNTO: ExpressionSpecification = ['interpolate', ['linear'], ['get', 'severity'], 1, 5, 10, 14]
-
 function asegurarCapas(map: Map) {
+  registrarIconosAmenaza(map)
+  // Also replace an existing circle layer during a development hot reload.
+  if (map.getLayer('predicciones-halo')) map.removeLayer('predicciones-halo')
+  if (map.getLayer(CAPA_PUNTOS) && map.getLayer(CAPA_PUNTOS)?.type !== 'symbol') map.removeLayer(CAPA_PUNTOS)
   if (!map.getSource(FUENTE)) {
     map.addSource(FUENTE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-  }
-  if (!map.getLayer(CAPA_HALO)) {
-    map.addLayer({
-      id: CAPA_HALO,
-      type: 'circle',
-      source: FUENTE,
-      paint: {
-        'circle-color': COLOR_TIPO,
-        'circle-radius': RADIO_HALO,
-        'circle-opacity': 0.2,
-      },
-    })
   }
   if (!map.getLayer(CAPA_PUNTOS)) {
     map.addLayer({
       id: CAPA_PUNTOS,
-      type: 'circle',
+      type: 'symbol',
       source: FUENTE,
-      paint: {
-        'circle-color': COLOR_TIPO,
-        'circle-radius': RADIO_PUNTO,
-        'circle-opacity': 0.95,
-        'circle-stroke-width': 1.5,
-        'circle-stroke-color': '#0b1b29',
+      layout: {
+        'icon-image': ['concat', 'amenaza-', ['get', 'type']],
+        'icon-size': ['interpolate', ['linear'], ['get', 'severity'], 0, .85, 10, 1.2],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'symbol-sort-key': ['get', 'severity'],
       },
+      paint: { 'icon-opacity': 1 },
     })
   }
 }
 
 function fijarVisibilidad(map: Map, visible: boolean) {
-  for (const capa of [CAPA_HALO, CAPA_PUNTOS]) {
-    if (map.getLayer(capa)) map.setLayoutProperty(capa, 'visibility', visible ? 'visible' : 'none')
-  }
+  if (map.getLayer(CAPA_PUNTOS)) map.setLayoutProperty(CAPA_PUNTOS, 'visibility', visible ? 'visible' : 'none')
 }
 
 function propiedadesDesde(feature: { properties?: Record<string, unknown> | null }): PropiedadesDesastre | undefined {
@@ -71,6 +49,13 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
   const severity = typeof props.severity === 'number' ? props.severity : Number(props.severity)
   const radius = typeof props.radius_km === 'number' ? props.radius_km : Number(props.radius_km)
   if (!Number.isFinite(severity) || !Number.isFinite(radius) || radius <= 0) return undefined
+  const evidence = props.evidence
+  const score = props.score
+  const probability = props.probability
+  const month = props.month
+  const source = props.source
+  const stateName = props.state_name
+  const stateClave = props.state_clave
   return {
     id: String(props.id ?? ''),
     name: String(props.name ?? 'Evento sin nombre'),
@@ -78,40 +63,46 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
     severity,
     radius_km: radius,
     date: String(props.date ?? ''),
+    ...(typeof evidence === 'string' ? { evidence: evidence as PropiedadesDesastre['evidence'] } : {}),
+    ...(typeof score === 'number' || score === null ? { score } : {}),
+    ...(typeof probability === 'number' || probability === null ? { probability } : {}),
+    ...(typeof props.observed === 'boolean' ? { observed: props.observed } : {}),
+    ...(typeof month === 'string' ? { month } : {}),
+    ...(typeof source === 'string' ? { source } : {}),
+    ...(typeof stateName === 'string' ? { state_name: stateName } : {}),
+    ...(typeof stateClave === 'string' ? { state_clave: stateClave } : {}),
   }
 }
 
-function contenidoPopup(props: PropiedadesDesastre): HTMLDivElement {
-  const contenedor = document.createElement('div')
-  contenedor.className = 'prediccion-popup-contenido'
-  const tipo = document.createElement('p')
-  tipo.className = 'prediccion-popup-tipo'
-  tipo.style.color = COLORES_DESASTRE[props.type]
-  tipo.textContent = `${ETIQUETAS_DESASTRE[props.type]} · Severidad ${props.severity.toFixed(1)}/10`
-  const nombre = document.createElement('p')
-  nombre.className = 'prediccion-popup-nombre'
-  nombre.textContent = props.name
-  const detalle = document.createElement('p')
-  detalle.className = 'prediccion-popup-detalle'
-  detalle.textContent = `Radio estimado: ${props.radius_km} km · Fecha: ${props.date}`
-  contenedor.append(tipo, nombre, detalle)
-  return contenedor
-}
 
 export function PredictionMarkers({
   sesion,
   visible,
   fecha,
+  tipo,
+  estadoFiltro,
   intento = 0,
   onEstado,
 }: {
   sesion?: SesionMapa
   visible: boolean
   fecha?: string
+  tipo?: TipoDesastre
+  estadoFiltro?: string
   intento?: number
   onEstado?: (estado: EstadoPredicciones) => void
 }) {
+  const { idioma } = useIdioma()
   const popupRef = useRef<Popup | null>(null)
+  const datosPopupRef = useRef<PropiedadesDesastre | undefined>(undefined)
+  const idiomaRef = useRef(idioma)
+
+  useEffect(() => {
+    idiomaRef.current = idioma
+    if (popupRef.current?.isOpen() && datosPopupRef.current) {
+      popupRef.current.setDOMContent(contenidoPopup(datosPopupRef.current, idioma))
+    }
+  }, [idioma])
 
   useEffect(() => {
     if (!sesion?.activa) return
@@ -122,6 +113,7 @@ export function PredictionMarkers({
     function cerrarPopup() {
       popupRef.current?.remove()
       popupRef.current = null
+      datosPopupRef.current = undefined
     }
 
     async function sincronizar() {
@@ -133,8 +125,10 @@ export function PredictionMarkers({
       }
 
       onEstado?.({ estado: 'cargando' })
+      fijarVisibilidad(map, false)
+      cerrarPopup()
       try {
-        const datos = await obtenerPredicciones(fecha, controller.signal)
+        const datos = await obtenerPredicciones(fecha, controller.signal, tipo, estadoFiltro)
         if (controller.signal.aborted || !mapaSesion.activa) return
 
         asegurarCapas(map)
@@ -148,7 +142,7 @@ export function PredictionMarkers({
         onEstado?.({
           estado: 'listo',
           total: datos.metadata?.count ?? datos.features.length,
-          fecha: datos.metadata?.date ?? fecha,
+          fecha: datos.metadata?.period ?? datos.metadata?.date ?? fecha,
         })
       } catch (error) {
         if (controller.signal.aborted || !mapaSesion.activa) return
@@ -169,9 +163,10 @@ export function PredictionMarkers({
       if (!props || feature.geometry.type !== 'Point') return
 
       cerrarPopup()
-      popupRef.current = new Popup({ offset: 14, closeButton: true, className: 'prediccion-popup' })
+      datosPopupRef.current = props
+      popupRef.current = new Popup({ offset: 20, closeButton: true, className: 'prediccion-popup' })
         .setLngLat(feature.geometry.coordinates as [number, number])
-        .setDOMContent(contenidoPopup(props))
+        .setDOMContent(contenidoPopup(props, idiomaRef.current))
         .addTo(map)
     }
 
@@ -183,7 +178,7 @@ export function PredictionMarkers({
       map.off('click', onClick)
       cerrarPopup()
     }
-  }, [sesion, visible, fecha, intento, onEstado])
+  }, [sesion, visible, fecha, tipo, estadoFiltro, intento, onEstado])
 
   return null
 }

@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson'
 import type { Ref } from 'react'
+import type { TipoDesastre } from '../servicios/predicciones'
 
 export interface PropiedadesArea { clave: string; entidad: string; nombre: string; abreviatura?: string }
 export type AreaGeografica = Feature<Polygon | MultiPolygon, PropiedadesArea>
@@ -21,7 +22,7 @@ export type EstadoPredicciones =
 export interface MapaHandle { zoom: (delta: number) => void; restablecer: () => void }
 export interface MapaMexicoProps {
   ref?: Ref<MapaHandle>
-  geografia: GeografiaMexico
+  geografia?: GeografiaMexico
   entidad?: Entidad
   municipios?: ColeccionAreas
   municipio?: string
@@ -29,6 +30,7 @@ export interface MapaMexicoProps {
   mostrarMunicipios: boolean
   mostrarPredicciones?: boolean
   fechaPrediccion?: string
+  tipoPrediccion?: TipoDesastre
   intentoPredicciones?: number
   estadoPredicciones?: EstadoPredicciones
   onEstadoPredicciones?: (estado: EstadoPredicciones) => void

@@ -1,6 +1,48 @@
-﻿# Earth Symphony · México
+# TerraSync · México
 
 Arquitectura inicial: React 19, TypeScript estricto, Vite 8, Tailwind CSS 4, React Router y PWA. La aplicación se desarrolla directamente en `front404`.
+
+## Funciones de la entrega
+
+El mapa incorpora un slider temporal con teclado y arrastre, reproducción y selector de mes. Seleccionar un estado por clic o por el selector filtra los indicadores, el historial, la tabla enlazada y la exportación `.xlsx`. El historial recorre los meses disponibles para el filtro activo; no rellena huecos con datos inventados.
+
+Los filtros se guardan en la URL (`period`, `state`, `type`), por lo que puedes compartir una selección, recargarla o ir de Observaciones al mapa conservándola. Los créditos de la textura y los iconos se consultan en Aprende, dentro de «Fuentes y créditos».
+
+La paleta proporcionada por el equipo se centraliza en `src/estilos/paleta.css`: 28 tonos de azul, rosa, amarillo y gris. La interfaz usa azul como base, rosa para acciones y amarillo en el control temporal. Los colores de amenaza y la textura terrestre mantienen su significado.
+
+Se utiliza la variante oscura en toda la aplicación: fondo azul noche, paneles azul profundo, texto claro y controles nativos oscuros. El relieve del mapa se muestra atenuado, con etiquetas claras; la línea del tiempo, Observaciones, Aprende, tablas y tutorial mantienen el mismo tema.
+
+Los indicadores se representan con iconos por fenómeno: onda sísmica roja, huracán azul, sol amarillo para sequía, olas cian para inundación y llama naranja para incendio. Los filtros usan los mismos símbolos. El tamaño mantiene la escala de severidad y cada icono abre la ficha del registro.
+
+Las fichas traducen sus etiquetas y estados de evidencia según ES/EN, incluyendo probabilidad y puntuación. Cambiar de idioma actualiza la ficha abierta sin cerrarla ni repetir la consulta. Observaciones utiliza las mismas traducciones de evidencia.
+
+El mapa tiene una barra flotante de cristal oscuro, con reflejo suave que sigue al cursor y respeta movimiento reducido. El menú «Herramientas» reúne municipios, registros y exportación Excel; en móvil también contiene la guía rápida. La barra sustituye las dos filas opacas anteriores para ampliar el lienzo del mapa.
+
+Observaciones consulta el catálogo con filtros por mes, estado y fenómeno. Aprende contiene lecciones de interpretación, fuentes y una actividad breve. El selector ES/EN se encuentra en la esquina superior derecha y conserva la preferencia local; los nombres y valores científicos originales no se traducen. El tutorial tiene cuatro pasos y está disponible desde el mapa y Aprende.
+
+Identidad: `src/configuracion/proyecto.ts` centraliza nombre, equipo, GitHub e integrantes. Se conserva TerraSync; el logo recibido está en `public/assets/equipo/logo.jpg` y el isotipo del proyecto en `public/logo-equipo.svg`. Los nombres personales están pendientes. IBM Plex Sans se sirve localmente con su licencia en `public/fonts/OFL.txt`.
+
+La aplicación permanece local. El perfil de despliegue con Nginx, Gunicorn y PostgreSQL está en [deployment/README.md](deployment/README.md) y se prueba en `http://127.0.0.1:8080`. La [presentación y el documento técnico](docs/entrega/README.md) se entregan como PDF y fuentes LaTeX.
+
+## Front y API local integrados
+
+Desde esta carpeta, con Docker Desktop iniciado:
+
+```sh
+pnpm stack:up
+pnpm dev --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Abre `http://127.0.0.1:5173/explorar`. Vite reenvía `/api` a Django en `http://127.0.0.1:8000`, tanto en desarrollo como en `pnpm preview`. `pnpm stack:up` construye el backend de `404-Gravity-Not-Found-integration`, aplica sus migraciones y espera a que PostgreSQL y la API estén saludables. Usa el catálogo incluido en `404-Gravity-Not-Found-integration/data` mediante un volumen de solo lectura. La copia `404-Gravity-Not-Found-back` conserva la versión anterior con simulaciones y no se inicia en paralelo: ambas implementan las mismas rutas.
+
+El explorador conserva el front de esta carpeta e incorpora los marcadores, filtros y TimeMap de la integración. Selecciona el último mes disponible al cargar el catálogo; los indicadores distinguen evidencia observada, supervisada, proxy y no confirmable. Los resultados son los del catálogo incluido, no consultas en vivo a NASA. Consulta su procedencia antes de interpretar las ubicaciones y probabilidades como evidencia de eventos reales.
+
+- Estado: `http://127.0.0.1:8000/api/catalog/status/`
+- Línea de tiempo: `http://127.0.0.1:8000/api/timemap/`
+- GeoJSON: `http://127.0.0.1:8000/api/predictions/?period=2026-11`
+- Swagger: `http://127.0.0.1:8000/api/docs/swagger/`
+
+`pnpm stack:logs` muestra los registros. `pnpm stack:down` detiene los contenedores y conserva el volumen de PostgreSQL; detén Vite con Ctrl+C en su terminal. El Compose de la raíz es para desarrollo local y publica la API únicamente en `127.0.0.1`. Para cambiar las credenciales de desarrollo, configura `DATABASE_PASSWORD` y `SECRET_KEY` en un `.env` local antes del primer arranque.
 
 ## Comandos pnpm
 
@@ -88,15 +130,7 @@ La vista inicial encuadra México con margen y la navegación se limita a una ca
 
 Fuente del fondo: [WMS de terrestris](https://terrestris.de/en/products/free-osm-wms/) y [cartografía topográfica de mundialis](https://www.mundialis.de/en/software/web-map-services-wms/). Los créditos permanecen visibles. El servicio público no tiene disponibilidad garantizada: si falla, se informa sin bloquear las divisiones locales y se ofrece reintento. No se precargan ni se almacenan masivamente teselas de ese proveedor; se respeta la caché HTTP del navegador. Los GeoJSON del INEGI y las fuentes de las etiquetas siguen siendo locales.
 
-El futuro catálogo científico de regiones sigue pendiente; RegionMarkers está preparado para MapLibre sin inventar regiones. Las fechas de Observaciones se editan sin consultas. SAR y metadatos muestran estados vacíos. Aprendamos presenta temas en preparación. El explorador se conecta al backend de predicciones, que genera eventos simulados; no hay autenticación, observaciones ni resultados NISAR inventados.
-
-## Predicciones conectadas al backend
-
-El explorador consume `GET /api/predictions/?date=YYYY-MM-DD` del proyecto `backend_nasa` (Django REST Framework). La respuesta es un `FeatureCollection` GeoJSON con puntos, tipo de amenaza, severidad, radio estimado y fecha. El frontend valida ese contrato antes de dibujarlo, colorea por tipo, dimensiona por severidad y muestra el detalle al hacer clic en un punto.
-
-En desarrollo, Vite reenvía `/api` a `http://127.0.0.1:8000` mediante `server.proxy` (ver `vite.config.ts`), así que no hace falta configurar CORS ni cambiar la URL del frontend. Para usar otro origen, define `VITE_API_PREDICCIONES` con la URL completa del endpoint al iniciar Vite. La fecha se cambia desde la barra del mapa y, por defecto, se consulta el día siguiente. Si el backend falla, la barra informa el problema y permite reintentar sin ocultar los límites locales.
-
-Las predicciones son una simulación determinista generada por el backend a partir de la fecha. No son alertas oficiales, no provienen de NISAR y no sustituyen a Protección Civil.
+El catálogo de regiones de estudio sigue pendiente; RegionMarkers está preparado para MapLibre sin inventar regiones. Observaciones consulta el catálogo real servido por el backend, y Aprende contiene recursos de interpretación. El explorador, la tabla y la exportación comparten filtros. No se muestran imágenes SAR ni se implementa autenticación de usuario en la interfaz.
 
 ## Datos geográficos
 

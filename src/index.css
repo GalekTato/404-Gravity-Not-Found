@@ -1,1 +1,4 @@
 ﻿@import "tailwindcss"; @import "./estilos/tema.css";
+@import "./estilos/paleta.css";
+@import "./estilos/producto.css";
+@import "./estilos/cristal-mapa.css";

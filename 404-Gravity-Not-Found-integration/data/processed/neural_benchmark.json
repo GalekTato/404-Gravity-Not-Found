@@ -1,0 +1,13 @@
+{
+  "torch": "2.11.0+cu128",
+  "results": [
+    {
+      "backend": "cpu",
+      "seconds": 1.396
+    },
+    {
+      "backend": "gpu",
+      "seconds": 5.45
+    }
+  ]
+}

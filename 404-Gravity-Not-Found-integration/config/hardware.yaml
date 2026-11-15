@@ -1,0 +1,25 @@
+# Hardware policy. "auto" is resolved at runtime by hardware_runtime.py.
+# Values can be overridden here without changing pipeline code.
+workers: auto
+ram_fraction: 0.78
+ram_budget_gb: auto
+chunk_size: auto
+batch_size: auto
+gpu_enabled: auto
+gpu_device: 0
+pin_memory: auto
+persistent_workers: true
+prefetch_factor: 2
+seed: 20261115
+deterministic: true
+
+# Optional backend preferences. Unsupported backends fall back automatically.
+array_backend: auto
+cpu_scheduler: processes
+io_scheduler: threads
+cache_format: zarr
+cache_compression: zstd
+profiling_enabled: true
+monitor_interval_seconds: 10
+parallel_min_files: auto
+parallel_min_bytes_mb: auto

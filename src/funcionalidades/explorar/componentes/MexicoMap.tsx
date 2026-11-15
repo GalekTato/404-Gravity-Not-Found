@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useIdioma } from '../../../configuracion/idiomaContexto'
 import type { GeoJSONSource, MapMouseEvent } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useMapaMexico } from '../hooks/useMapaMexico'
@@ -6,36 +7,31 @@ import type { SesionMapa } from '../hooks/useMapaMexico'
 import { agregarCapas, ajustarVista, limitesMexico, opacidadEstados } from '../servicios/mapaMexico'
 import { limitesArea } from '../servicios/geografia'
 import { esperarMunicipiosDibujados } from '../servicios/capaMunicipal'
-import { COLORES_DESASTRE, ETIQUETAS_DESASTRE, TIPOS_DESASTRE } from '../servicios/predicciones'
-import type { ColeccionAreas, EstadoPredicciones, MapaMexicoProps } from '../tipos/cartografia'
-import { MexicoBoundary } from './MexicoBoundary'
+import type { ColeccionAreas, MapaMexicoProps } from '../tipos/cartografia'
 import { PredictionMarkers } from './PredictionMarkers'
-
-function textoPredicciones(estado: EstadoPredicciones | undefined, fecha: string | undefined) {
-  if (!estado || estado.estado === 'inactivo') return 'Predicciones simuladas · no son alertas oficiales'
-  if (estado.estado === 'cargando') return 'Consultando predicciones simuladas…'
-  if (estado.estado === 'error') return 'No se pudieron cargar las predicciones.'
-  return `${estado.total} eventos simulados · ${estado.fecha ?? fecha ?? 'fecha consultada'} · no son alertas oficiales`
-}
+import { MexicoBoundary } from './MexicoBoundary'
 
 export function MexicoMap({ ref, geografia, entidad, municipios, municipio, mostrarLimites, mostrarMunicipios,
-  mostrarPredicciones, fechaPrediccion, intentoPredicciones, estadoPredicciones, onEstadoPredicciones,
+  mostrarPredicciones, fechaPrediccion, tipoPrediccion, intentoPredicciones, onEstadoPredicciones,
   onEntidad, onMunicipio, onReadyChange, onEstadoCapaMunicipal }: MapaMexicoProps) {
   const container = useRef<HTMLDivElement>(null)
+  const { t, idioma } = useIdioma()
   const { sesion, estado, mensaje, reintentar, avisoRelieve, reintentarRelieve } = useMapaMexico(container, onReadyChange)
   const colaMunicipios = useRef<{ sesion?: SesionMapa; tarea: Promise<void> }>({ tarea: Promise.resolve() })
   const [capaMunicipal, setCapaMunicipal] = useState<{ sesion: SesionMapa; datos?: ColeccionAreas; error?: string }>()
   const municipiosListos = capaMunicipal?.sesion === sesion && capaMunicipal?.datos === municipios && !capaMunicipal?.error
 
   useEffect(() => {
-    if (!sesion?.activa) return
+    if (sesion?.activa) sesion.map.getCanvas().setAttribute('aria-label', t('Mapa de México. Selecciona un estado o usa el selector.', 'Map of Mexico. Select a state or use the state selector.'))
+  }, [sesion, idioma, t])
+
+  useEffect(() => {
+    if (!sesion?.activa || !geografia) return
     const { map } = sesion
     if (!map.getSource('estados')) agregarCapas(map, geografia)
     let hover: string | number | undefined
     function click(event: MapMouseEvent) {
-      // Un clic sobre una predicción abre su detalle; no debe seleccionar el territorio que hay debajo.
-      if (map.getLayer('predicciones-puntos')
-        && map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length) return
+      if (map.getLayer('predicciones-puntos') && map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length) return
       const municipal = map.queryRenderedFeatures(event.point, { layers: ['municipios-relleno', 'municipios-etiquetas'] })[0]
       if (municipal?.properties?.clave) { onMunicipio(String(municipal.properties.clave)); return }
       const estatal = map.queryRenderedFeatures(event.point, { layers: ['estados-relleno', 'estados-etiquetas'] })[0]
@@ -43,13 +39,11 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     }
     function mover(event: MapMouseEvent) {
       const feature = map.queryRenderedFeatures(event.point, { layers: ['estados-relleno'] })[0]
-      const prediccion = map.getLayer('predicciones-puntos')
-        ? map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length > 0
-        : false
+      const indicador = map.getLayer('predicciones-puntos') && map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length > 0
       if (hover !== undefined) map.setFeatureState({ source: 'estados', id: hover }, { hover: false })
       hover = feature?.id
       if (hover !== undefined) map.setFeatureState({ source: 'estados', id: hover }, { hover: true })
-      map.getCanvas().style.cursor = feature || prediccion ? 'pointer' : ''
+      map.getCanvas().style.cursor = feature || indicador ? 'pointer' : ''
     }
     map.on('click', click)
     map.on('mousemove', mover)
@@ -57,16 +51,16 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
   }, [sesion, geografia, onEntidad, onMunicipio])
 
   useEffect(() => {
-    if (!sesion?.activa) return
+    if (!sesion?.activa || !geografia) return
     const { map } = sesion
     map.removeFeatureState({ source: 'estados' })
     if (entidad) map.setFeatureState({ source: 'estados', id: entidad.clave }, { seleccionado: true })
     map.setFilter('estado-seleccionado', ['==', ['get', 'clave'], entidad?.clave ?? ''])
     ajustarVista(map, entidad?.limites ?? limitesMexico)
-  }, [sesion, entidad])
+  }, [sesion, geografia, entidad])
 
   useEffect(() => {
-    if (!sesion?.activa) return
+    if (!sesion?.activa || !geografia) return
     const source = sesion.map.getSource('municipios') as GeoJSONSource
     let vigente = true
     const controller = new AbortController()
@@ -91,10 +85,10 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
       onEstadoCapaMunicipal({ clave, estado: 'error', mensaje })
     })
     return () => { vigente = false; controller.abort() }
-  }, [sesion, municipios, entidad?.clave, onEstadoCapaMunicipal])
+  }, [sesion, geografia, municipios, entidad?.clave, onEstadoCapaMunicipal])
 
   useEffect(() => {
-    if (!sesion?.activa || !municipiosListos) return
+    if (!sesion?.activa || !geografia || !municipiosListos) return
     const { map } = sesion
     map.removeFeatureState({ source: 'municipios' })
     map.setFilter('municipio-seleccionado', ['==', ['get', 'clave'], municipio ?? ''])
@@ -104,36 +98,36 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
       const feature = municipios?.features.find(feature => feature.properties.clave === municipio)
       if (feature) ajustarVista(map, limitesArea(feature))
     }
-  }, [sesion, municipio, municipios, entidad, municipiosListos])
+  }, [sesion, geografia, municipio, municipios, entidad, municipiosListos])
 
   useEffect(() => {
-    if (!sesion?.activa) return
+    if (!sesion?.activa || !geografia) return
     for (const layer of ['municipios-relleno', 'municipios-linea', 'municipios-etiquetas']) {
       // Mantener activa la fuente permite preparar sus teselas. El filtro impide mostrar otra entidad.
       sesion.map.setFilter(layer, ['==', ['get', 'entidad'], entidad?.clave ?? ''])
       sesion.map.setLayoutProperty(layer, 'visibility', mostrarMunicipios && !!municipios ? 'visible' : 'none')
     }
     sesion.map.setLayoutProperty('municipio-seleccionado', 'visibility', mostrarMunicipios && municipiosListos ? 'visible' : 'none')
-  }, [sesion, mostrarMunicipios, municipiosListos, municipios, entidad?.clave])
+  }, [sesion, geografia, mostrarMunicipios, municipiosListos, municipios, entidad?.clave])
 
   useEffect(() => {
     if (!sesion?.activa || !sesion.map.getLayer('estados-relleno')) return
     sesion.map.setPaintProperty('estados-relleno', 'fill-opacity', avisoRelieve ? .92 : opacidadEstados)
-  }, [sesion, avisoRelieve])
+  }, [sesion, geografia, avisoRelieve])
 
   useEffect(() => {
-    if (!sesion?.activa) return
+    if (!sesion?.activa || !geografia) return
     const { map } = sesion
     const feature = municipios?.features.find(feature => feature.properties.clave === municipio)
     const limites = feature ? limitesArea(feature) : entidad?.limites ?? limitesMexico
     function reencuadrar() {
-      if (!sesion?.activa) return
+      if (!sesion?.activa || !geografia) return
       map.stop()
       ajustarVista(map, limites, false)
     }
     map.on('resize', reencuadrar)
     return () => { map.off('resize', reencuadrar) }
-  }, [sesion, entidad, municipio, municipios])
+  }, [sesion, geografia, entidad, municipio, municipios])
 
   useImperativeHandle(ref, () => ({
     zoom(delta) { if (sesion?.activa) sesion.map.zoomTo(sesion.map.getZoom() + delta, { duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 250 }) },
@@ -144,24 +138,13 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     <div className="map-stage" aria-busy={estado === 'cargando'}>
       <div ref={container} className="mexico-map" />
       {estado !== 'listo' && <div className="map-feedback" role={estado === 'error' ? 'alert' : 'status'}>
-        <p>{estado === 'cargando' ? 'Preparando el mapa de México…' : mensaje}</p>
-        {estado === 'error' && <button className="button button-primary" onClick={reintentar}>Volver a intentar</button>}
+        <p>{estado === 'cargando' ? t('Preparando el mapa de México…', 'Preparing the map of Mexico…') : t(mensaje, 'The map could not be displayed. Check WebGL support in your browser.')}</p>
+        {estado === 'error' && <button className="button button-primary" onClick={reintentar}>{t('Volver a intentar', 'Retry')}</button>}
       </div>}
       <MexicoBoundary sesion={sesion} visible={mostrarLimites}/>
-      <PredictionMarkers sesion={sesion} visible={!!mostrarPredicciones} fecha={fechaPrediccion}
-        intento={intentoPredicciones} onEstado={onEstadoPredicciones}/>
-      {avisoRelieve && <div className="map-base-notice" role="status"><p>{avisoRelieve}</p><button onClick={reintentarRelieve}>Reintentar relieve</button></div>}
-      <div className="map-legend" aria-label="Leyenda del mapa">
-        <span className="legend-row"><span className="legend-state"/> Estados <span className="legend-municipal"/> Municipios de la entidad seleccionada</span>
-        {mostrarPredicciones && <>
-          <span className="legend-row legend-prediction-types">
-            {TIPOS_DESASTRE.map(tipo => <span key={tipo} className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: COLORES_DESASTRE[tipo] }}/>{ETIQUETAS_DESASTRE[tipo]}
-            </span>)}
-          </span>
-          <span className="legend-caption">{textoPredicciones(estadoPredicciones, fechaPrediccion)}</span>
-        </>}
-      </div>
+      <PredictionMarkers sesion={sesion} visible={!!mostrarPredicciones && !!fechaPrediccion} fecha={fechaPrediccion}
+        tipo={tipoPrediccion} estadoFiltro={entidad?.clave} intento={intentoPredicciones} onEstado={onEstadoPredicciones}/>
+      {avisoRelieve && <div className="map-base-notice" role="status"><p>{t(avisoRelieve, 'Relief is unavailable. State and municipality boundaries are still available.')}</p><button onClick={reintentarRelieve}>{t('Reintentar relieve', 'Retry relief')}</button></div>}
     </div>
   )
 }

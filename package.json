@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "stack:up": "docker compose up --build -d --wait",
+    "stack:down": "docker compose down",
+    "stack:logs": "docker compose logs --tail 100 api",
     "datos:geografia": "node scripts/importar-geografia.mjs",
     "datos:verificar": "node scripts/verificar-geografia.mjs",
     "typecheck": "tsc -b --pretty false",
@@ -19,7 +22,8 @@
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
     "tailwindcss": "^4.3.5",
-    "three": "^0.187.0"
+    "three": "^0.187.0",
+    "workbox-window": "7.4.1"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.16",

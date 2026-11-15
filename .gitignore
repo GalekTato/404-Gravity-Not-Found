@@ -10,7 +10,19 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.taste-skill/
 *.local
+.env
+.env.*
+!.env.example
+__pycache__/
+.venv/
+*.sqlite3
+docs/entrega/*.aux
+docs/entrega/*.out
+docs/entrega/*.toc
+docs/entrega/*.nav
+docs/entrega/*.snm
 
 # Editor directories and files
 .vscode/*

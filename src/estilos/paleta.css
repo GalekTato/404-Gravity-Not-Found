@@ -1,0 +1,56 @@
+/* Palette supplied by the project team. */
+:root {
+  --azul-50: #e9f2fa;
+  --azul-200: #afd1ed;
+  --azul-400: #6fadd6;
+  --azul-500: #5586a7;
+  --azul-600: #3c617a;
+  --azul-800: #253f50;
+  --azul-950: #101f29;
+  --rosa-100: #f0d6d7;
+  --rosa-300: #e1a5a9;
+  --rosa-400: #d66f79;
+  --rosa-600: #af4753;
+  --rosa-800: #792f37;
+  --rosa-900: #48191e;
+  --rosa-950: #23080b;
+  --amarillo-100: #fbf3b0;
+  --amarillo-300: #d6cc6f;
+  --amarillo-400: #ada558;
+  --amarillo-500: #857f43;
+  --amarillo-700: #5d582e;
+  --amarillo-800: #3d3a1b;
+  --amarillo-950: #1d1b0a;
+  --gris-50: #f0f1f1;
+  --gris-200: #cbced0;
+  --gris-400: #a3a7aa;
+  --gris-500: #7e8184;
+  --gris-600: #5b5e60;
+  --gris-800: #383c3e;
+  --gris-950: #1d1e1f;
+
+  --p-bg: var(--azul-950);
+  --p-surface: var(--azul-800);
+  --p-ink: var(--azul-50);
+  --p-muted: var(--azul-200);
+  --p-accent: var(--azul-400);
+  --p-accent-ink: var(--azul-950);
+  --p-action: var(--rosa-600);
+  --p-action-ink: var(--azul-50);
+  --superficie-alta: var(--azul-600);
+  --superficie-activa: var(--azul-600);
+  --borde: var(--azul-600);
+  --borde-interactivo: var(--azul-500);
+  --acento-hover: var(--rosa-800);
+  --detalle: var(--amarillo-300);
+  --texto-tenue: var(--azul-200);
+  --sombra: var(--azul-950);
+  --p-inv-bg: var(--azul-950);
+  --p-inv-surface: var(--azul-800);
+  --p-inv-ink: var(--azul-50);
+  --p-inv-muted: var(--azul-200);
+  --p-inv-accent: var(--azul-600);
+  --p-inv-accent-ink: var(--azul-50);
+  --p-inv-action: var(--rosa-600);
+  --p-inv-action-ink: var(--azul-50);
+}

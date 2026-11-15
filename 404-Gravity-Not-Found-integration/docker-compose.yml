@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    container_name: nasa_db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-nasa_db}
+      POSTGRES_USER: ${DATABASE_USER:-nasa}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-nasa_local_dev_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nasa_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: nasa_web
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - ../data:/pipeline_data/data:ro
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: ${DATABASE_NAME:-nasa_db}
+      DATABASE_USER: ${DATABASE_USER:-nasa}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-nasa_local_dev_2026}
+      REDIS_URL: redis://redis:6379/1
+      DEBUG: ${DEBUG:-True}
+      SECRET_KEY: ${SECRET_KEY:-nasa-geospatial-local-secret-key-2026}
+      PIPELINE_DATA_ROOT: ${PIPELINE_DATA_ROOT:-/pipeline_data}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:

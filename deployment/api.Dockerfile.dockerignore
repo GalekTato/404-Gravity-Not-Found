@@ -1,0 +1,11 @@
+.git
+.taste-skill
+node_modules
+dist
+public
+src
+404-Gravity-Not-Found-back
+404-Gravity-Not-Found-integration/data
+404-Gravity-Not-Found-integration/public
+404-Gravity-Not-Found-integration/src
+.env*

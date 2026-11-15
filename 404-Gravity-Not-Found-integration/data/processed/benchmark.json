@@ -1,0 +1,17 @@
+[
+  {
+    "name": "cleaning-sequential",
+    "seconds": 0.03070559999832767,
+    "repeats": 1
+  },
+  {
+    "name": "cleaning-parallel",
+    "seconds": 3.9708527000002505,
+    "repeats": 1
+  },
+  {
+    "name": "gpu",
+    "available": true,
+    "note": "Neural AMP path is validated separately; classical anomaly model remains CPU-compatible."
+  }
+]

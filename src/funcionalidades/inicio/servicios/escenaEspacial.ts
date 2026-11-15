@@ -1,4 +1,4 @@
-import { AdditiveBlending, AmbientLight, BackSide, BufferGeometry, Color, DirectionalLight, Float32BufferAttribute, Group, Line, LineBasicMaterial, LineLoop, Material, Mesh, MeshBasicMaterial, MeshPhongMaterial, PerspectiveCamera, Points, Ray, Scene, ShaderMaterial, Sphere, SphereGeometry, Spherical, SRGBColorSpace, TextureLoader, Vector3, WebGLRenderer } from 'three'
+import { AdditiveBlending, AmbientLight, BackSide, BufferGeometry, Color, DirectionalLight, Float32BufferAttribute, Group, Line, LineBasicMaterial, LineLoop, Material, Mesh, MeshBasicMaterial, MeshPhongMaterial, PerspectiveCamera, Points, Scene, ShaderMaterial, SphereGeometry, Spherical, SRGBColorSpace, TextureLoader, Vector3, WebGLRenderer } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { crearModeloNisar } from './modeloNisar'
 import type { ControlEscenaEspacial, OpcionesEscenaEspacial } from '../tipos/escenaEspacial'
@@ -41,9 +41,9 @@ function crearEstrellas() {
   return new Points(geometry, material)
 }
 
-export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onError }: OpcionesEscenaEspacial): ControlEscenaEspacial {
+export function crearEscenaEspacial({ contenedor, encuadre, animar, onLista, onError }: OpcionesEscenaEspacial): ControlEscenaEspacial {
   const scene = new Scene()
-  scene.background = new Color('#000000')
+  scene.background = new Color('#101f29')
   const camera = new PerspectiveCamera(40, 1, .1, 150)
   camera.position.copy(puntoGeografico(-102, 23, distanciaInicial))
   const renderer = new WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' })
@@ -51,8 +51,10 @@ export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onE
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
   contenedor.append(renderer.domElement)
   renderer.domElement.tabIndex = 0
-  renderer.domElement.setAttribute('aria-label', 'Globo terrestre 3D interactivo. Arrastra para girar, usa las flechas o los botones y la rueda para acercarte.')
+  renderer.domElement.setAttribute('aria-label', 'Globo terrestre 3D interactivo. Arrastra para girar, usa las flechas y los botones para acercarte. La rueda desplaza la página.')
   const controls = new OrbitControls(camera, renderer.domElement)
+  controls.enableZoom = false
+  renderer.domElement.style.touchAction = 'pan-y'
   controls.enableDamping = true
   controls.dampingFactor = .08
   controls.enablePan = false
@@ -104,9 +106,6 @@ export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onE
   let destruida = false, visible = true, contextoValido = true, reproduciendo = animar
   let fase = faseInicial, tiempo = 0, frame = 0, anterior = 0
   let distanciaEncuadre = distanciaInicial
-  const posicionSatelite = new Vector3(), proyectada = new Vector3(), direccion = new Vector3(), interseccion = new Vector3()
-  const esfera = new Sphere(new Vector3(), radioTierra)
-  const ray = new Ray()
   function dibujar() {
     if (destruida || !contextoValido) return
     satelite.position.set(Math.cos(fase) * radioOrbita, Math.sin(fase) * radioOrbita, 0)
@@ -121,15 +120,6 @@ export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onE
     estrellas.material.uniforms.tiempo.value = tiempo
     controls.update()
     scene.updateMatrixWorld()
-    satelite.getWorldPosition(posicionSatelite)
-    proyectada.copy(posicionSatelite).project(camera)
-    ray.set(camera.position, direccion.copy(posicionSatelite).sub(camera.position).normalize())
-    const impacto = ray.intersectSphere(esfera, interseccion)
-    const oculto = impacto !== null && camera.position.distanceTo(interseccion) < camera.position.distanceTo(posicionSatelite) - .02
-    etiqueta.hidden = oculto || Math.abs(proyectada.x) > .95 || Math.abs(proyectada.y) > .95 || proyectada.z > 1
-    const etiquetaX = Math.max(10, Math.min(contenedor.clientWidth - etiqueta.offsetWidth - 10, (proyectada.x * .5 + .5) * contenedor.clientWidth + 15))
-    const etiquetaY = Math.max(10, Math.min(contenedor.clientHeight - etiqueta.offsetHeight - 100, (-proyectada.y * .5 + .5) * contenedor.clientHeight + 14))
-    etiqueta.style.transform = `translate(${etiquetaX}px,${etiquetaY}px)`
     renderer.render(scene, camera)
   }
   function ejecutar(ahora: number) {
@@ -145,12 +135,16 @@ export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onE
   function redimensionar() {
     const ancho = contenedor.clientWidth, alto = contenedor.clientHeight
     if (!ancho || !alto || destruida) return
-    camera.aspect = ancho / alto
+    const area = encuadre.getBoundingClientRect(), fondo = contenedor.getBoundingClientRect()
+    if (!area.width || !area.height) return
+    camera.aspect = area.width / area.height
     const distanciaNueva = distanciaInicial * (camera.aspect < 1 ? 1.08 / camera.aspect : 1)
     camera.position.setLength(camera.position.length() / distanciaEncuadre * distanciaNueva)
     distanciaEncuadre = distanciaNueva
     controls.minDistance = distanciaEncuadre * .65
     controls.maxDistance = distanciaEncuadre * 1.6
+    // Amplía el campo estelar a todo el hero y conserva el globo en su columna.
+    camera.setViewOffset(area.width, area.height, fondo.left - area.left, fondo.top - area.top, ancho, alto)
     camera.updateProjectionMatrix()
     renderer.setSize(ancho, alto)
     estrellas.material.uniforms.densidad.value = renderer.getPixelRatio()
@@ -174,6 +168,7 @@ export function crearEscenaEspacial({ contenedor, etiqueta, animar, onLista, onE
   }
   const observer = new ResizeObserver(redimensionar)
   observer.observe(contenedor)
+  observer.observe(encuadre)
   const intersection = new IntersectionObserver(entries => { visible = entries[0]?.isIntersecting ?? true; if (visible) activar() }, { threshold: .01 })
   intersection.observe(contenedor)
   renderer.domElement.addEventListener('keydown', teclado)

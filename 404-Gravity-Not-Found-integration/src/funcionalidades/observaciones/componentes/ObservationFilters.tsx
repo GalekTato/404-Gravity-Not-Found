@@ -1,0 +1,4 @@
+import type { FiltrosObservaciones, Polarizacion } from '../tipos/observacion'
+export function ObservationFilters({ filtros, onChange }: { filtros: FiltrosObservaciones; onChange: (filtros: FiltrosObservaciones) => void }) {
+  return <div className="filter-grid"><label>Desde<input type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={e => onChange({ ...filtros, desde: e.target.value })}/></label><label>Hasta<input type="date" value={filtros.hasta} min={filtros.desde || undefined} onChange={e => onChange({ ...filtros, hasta: e.target.value })}/></label><label>Polarización<select value={filtros.polarizacion} onChange={e => onChange({ ...filtros, polarizacion: e.target.value as Polarizacion | '' })}><option value="">Sin catálogo conectado</option></select></label></div>
+}
