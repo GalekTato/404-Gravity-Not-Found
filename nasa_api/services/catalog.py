@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 from datetime import date
 from functools import lru_cache
@@ -258,7 +259,7 @@ def events_for_date(
 ) -> list[dict[str, Any]]:
     period = target_date.strftime("%Y-%m")
     spatial_events = events_for_period(period, hazard_type=hazard_type, state_clave=state_clave)
-    if spatial_events:
+    if spatial_events or _spatial_catalog_path().exists() or state_clave:
         return spatial_events
     frame = load_catalog()
     matches = frame[frame["month"] == period]
@@ -311,7 +312,17 @@ def timemap_summary(*, hazard_type: str | None = None, state_clave: str | None =
         rows = []
 
     if not rows:
-        return {"available": False, "total_events": 0, "total_periods": 0, "markers": []}
+        return {
+            "available": False,
+            "start_period": None,
+            "end_period": None,
+            "first_period": None,
+            "last_period": None,
+            "total_events": 0,
+            "total_periods": 0,
+            "states_covered": 0,
+            "markers": [],
+        }
 
     df = pd.DataFrame(rows)
     df["date_str"] = df["date"].astype(str).str.slice(0, 10)
@@ -347,6 +358,8 @@ def timemap_summary(*, hazard_type: str | None = None, state_clave: str | None =
 
     return {
         "available": True,
+        "start_period": markers[0]["period"],
+        "end_period": markers[-1]["period"],
         "first_period": markers[0]["period"],
         "last_period": markers[-1]["period"],
         "total_periods": len(markers),
@@ -382,4 +395,139 @@ def catalog_status() -> dict[str, Any]:
             for column in ("fire_evidence", "drought_evidence", "flood_evidence", "tectonic_evidence")
             if column in frame
         },
+    }
+
+
+COASTAL_EEZ_STATES = {
+    "02", "03", "04", "06", "07", "12", "14", "16", "18",
+    "20", "23", "25", "26", "27", "28", "30", "31",
+}
+
+
+def _read_processed_json(filename: str) -> dict[str, Any]:
+    path = _data_root() / "data" / "processed" / filename
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def model_metrics_summary() -> dict[str, Any]:
+    """Return calibrated data-mining metrics, sensor inventory, and territorial catalog summary."""
+    backtest = _read_processed_json("backtest.json")
+    production = _read_processed_json("production_evidence.json")
+    inventory = _read_processed_json("data_inventory.json")
+
+    rows: list[dict[str, Any]] = []
+    if _spatial_catalog_path().exists():
+        try:
+            ensure_postgres_catalog_synced()
+            from nasa_api.models import SpatialHazardEvent
+
+            rows = list(
+                SpatialHazardEvent.objects.values(
+                    "period",
+                    "hazard_type",
+                    "evidence",
+                    "observed",
+                    "state_clave",
+                    "state_name",
+                    "severity",
+                    "probability",
+                )
+            )
+        except Exception:
+            frame = load_spatial_catalog()
+            if not frame.empty:
+                rows = frame[
+                    ["period", "hazard_type", "evidence", "observed", "state_clave", "state_name", "severity", "probability"]
+                ].to_dict(orient="records")
+
+    by_hazard: dict[str, int] = {}
+    by_evidence: dict[str, int] = {}
+    top_states: list[dict[str, Any]] = []
+    coastal_eez_events = 0
+    inland_events = 0
+    total_periods = 0
+    states_covered = 0
+
+    if rows:
+        df = pd.DataFrame(rows)
+        by_hazard = {str(k): int(v) for k, v in df["hazard_type"].value_counts().to_dict().items()}
+        by_evidence = {str(k): int(v) for k, v in df["evidence"].fillna("proxy").value_counts().to_dict().items()}
+        total_periods = int(df["period"].nunique())
+        states_covered = int(df["state_clave"].nunique())
+        coastal_mask = df["state_clave"].astype(str).str.zfill(2).isin(COASTAL_EEZ_STATES)
+        coastal_eez_events = int(coastal_mask.sum())
+        inland_events = int(len(df) - coastal_eez_events)
+        grouped = (
+            df.groupby(["state_clave", "state_name"], dropna=False)
+            .agg(count=("period", "count"), max_severity=("severity", "max"))
+            .reset_index()
+            .sort_values(["count", "state_clave"], ascending=[False, True])
+        )
+        top_states = [
+            {
+                "state_clave": str(r["state_clave"]).zfill(2),
+                "state_name": str(r["state_name"]),
+                "count": int(r["count"]),
+                "max_severity": round(float(r["max_severity"]), 1),
+            }
+            for _, r in grouped.head(8).iterrows()
+        ]
+
+    sensor_groups = {}
+    for key, val in inventory.get("groups", {}).items():
+        if isinstance(val, dict):
+            sensor_groups[key] = {
+                "available": bool(val.get("available", False)),
+                "count": int(val.get("count", 0)),
+                "total_bytes": int(val.get("total_bytes", 0)),
+            }
+
+    return {
+        "available": True,
+        "database_engine": "postgresql",
+        "catalog_summary": {
+            "total_events": len(rows),
+            "total_periods": total_periods,
+            "states_covered": states_covered,
+            "coastal_and_eez_adjacent_events": coastal_eez_events,
+            "inland_continental_events": inland_events,
+            "by_hazard": by_hazard,
+            "by_evidence": by_evidence,
+            "top_states": top_states,
+        },
+        "backtest": backtest,
+        "sensors": sensor_groups,
+        "hardware": production.get("hardware", {}),
+        "ground_truth": production.get("ground_truth", {}),
+        "models": [
+            {
+                "id": "flood_ensemble",
+                "name_es": "Ensamble Hidrometeorológico + Fusión Log-Odds (Inundaciones)",
+                "name_en": "Hydrometeorological Ensemble + Log-Odds Calibration (Floods)",
+                "algorithms": ["LogisticRegression", "RandomForestClassifier", "ExtraTreesClassifier"],
+                "calibration": "Log-Odds (alpha=0.65 supervisado / 0.35 índice físico)",
+                "formula": "logit(P) = 0.65 * logit(P_ens) + 0.35 * z_phys + logit(base_rate)",
+            },
+            {
+                "id": "fire_ensemble",
+                "name_es": "Ensamble Térmico + VIIRS/EONET (Incendios Forestales)",
+                "name_en": "Thermal Ensemble + VIIRS/EONET (Wildfires)",
+                "algorithms": ["LogisticRegression", "RandomForestClassifier", "ExtraTreesClassifier"],
+                "calibration": "Log-Odds calibrado sobre anomalías MODIS LST y NDVI",
+                "formula": "Ignition_Idx = 0.40*z(LST) + 0.35*z(-Soil) + 0.25*z(Wind) - z(NDVI)",
+            },
+            {
+                "id": "sar_autoencoder",
+                "name_es": "Detección de Anomalías Multivariadas (IsolationForest + PyTorch Autoencoder)",
+                "name_en": "Multivariate Anomaly Detection (IsolationForest + PyTorch Autoencoder)",
+                "algorithms": ["IsolationForest", "AnomalyAutoencoder (PyTorch CUDA)"],
+                "calibration": "Cuantil robusto p95 sobre error de reconstrucción MSE",
+                "formula": "L(x) = ||x - Decoder(Encoder(x))||^2_2",
+            },
+        ],
     }

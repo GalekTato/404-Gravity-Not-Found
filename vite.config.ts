@@ -5,7 +5,13 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  server: { watch: { ignored: ['**/.taste-skill/**', '**/404-Gravity-Not-Found-back/**', '**/404-Gravity-Not-Found-integration/**'] }, proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } } },
+  base: process.env.VITE_BASE_PATH || '/',
+  server: {
+    watch: {
+      ignored: ['**/.taste-skill/**', '**/data/**', '**/pipeline/**', '**/nasa_api/**', '**/tests/**'],
+    },
+    proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } },
+  },
   preview: { proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } } },
   plugins: [
     react(),

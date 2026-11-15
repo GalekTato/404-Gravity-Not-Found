@@ -1,0 +1,197 @@
+{
+  "available": true,
+  "database_engine": "postgresql",
+  "catalog_summary": {
+    "total_events": 3290,
+    "total_periods": 203,
+    "states_covered": 32,
+    "coastal_and_eez_adjacent_events": 2273,
+    "inland_continental_events": 1017,
+    "by_hazard": {
+      "inundacion": 837,
+      "sismo": 734,
+      "incendio": 706,
+      "sequia": 607,
+      "huracan": 406
+    },
+    "by_evidence": {
+      "supervised": 1459,
+      "observed": 1196,
+      "proxy": 635
+    },
+    "top_states": [
+      {
+        "state_clave": "07",
+        "state_name": "Chiapas",
+        "count": 267,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "20",
+        "state_name": "Oaxaca",
+        "count": 244,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "12",
+        "state_name": "Guerrero",
+        "count": 190,
+        "max_severity": 10.0
+      },
+      {
+        "state_clave": "02",
+        "state_name": "Baja California",
+        "count": 163,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "03",
+        "state_name": "Baja California Sur",
+        "count": 158,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "06",
+        "state_name": "Colima",
+        "count": 135,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "30",
+        "state_name": "Veracruz de Ignacio de la Llave",
+        "count": 131,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "16",
+        "state_name": "Michoacán de Ocampo",
+        "count": 119,
+        "max_severity": 9.9
+      }
+    ]
+  },
+  "backtest": {
+    "results": [
+      {
+        "brier_score": 0.23434374478811115,
+        "f1": 0.5,
+        "hazard_type": "incendio",
+        "positive_test_months": 9,
+        "precision": 1.0,
+        "recall": 0.3333333333333333,
+        "roc_auc": 0.8571428571428572,
+        "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires",
+        "test_months": 23,
+        "threshold": -0.42730808342277704,
+        "train_months": 92
+      },
+      {
+        "brier_score": 0.05178596040866432,
+        "f1": 0.975609756097561,
+        "hazard_type": "inundacion",
+        "positive_test_months": 20,
+        "precision": 0.9523809523809523,
+        "recall": 1.0,
+        "roc_auc": 0.9944444444444445,
+        "source": "NOAA IBTrACS v04r01 (NA + EP tropical cyclone tracks in Mexico)",
+        "test_months": 38,
+        "threshold": 0.16723544968050746,
+        "train_months": 151
+      }
+    ],
+    "skipped": [
+      {
+        "hazard_type": "sequia",
+        "reason": "No independent ground-truth labels are available for hazard 'sequia'."
+      },
+      {
+        "hazard_type": "sismo",
+        "reason": "Catalog has zero finite values for 'tectonic_score_proxy' (insufficient sensor/SAR temporal pairs)."
+      }
+    ]
+  },
+  "sensors": {
+    "alos": {
+      "available": true,
+      "count": 15,
+      "total_bytes": 24328073
+    },
+    "nisar": {
+      "available": true,
+      "count": 15,
+      "total_bytes": 554637297
+    },
+    "firms": {
+      "available": true,
+      "count": 6,
+      "total_bytes": 24997397
+    },
+    "gpm": {
+      "available": true,
+      "count": 197,
+      "total_bytes": 3610268034
+    },
+    "modis": {
+      "available": true,
+      "count": 206,
+      "total_bytes": 14961736209
+    },
+    "gldas": {
+      "available": true,
+      "count": 199,
+      "total_bytes": 4986942063
+    }
+  },
+  "hardware": {
+    "cpu_count": 16,
+    "workers": 14,
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "cuda": true,
+    "torch": "2.11.0+cu128"
+  },
+  "ground_truth": {
+    "usgs_earthquakes": "acquired (2010-2026, M>=4.0, complete monthly series + M>=4.5 epicenters mapped to 32 Mexican states)",
+    "firms_fire_observations": "acquired (local FIRMS + NASA EONET v3 Historical Wildfires filtered to Mexican state polygons)",
+    "ibtracs_cyclones": "acquired (NOAA IBTrACS v04r01 North Atlantic + Eastern Pacific basins filtered to Mexico)",
+    "gpm_gldas": "available as per-state spatial indicators (32 states x 202 months), not independent labels",
+    "drought": "unavailable as independent label",
+    "flood": "evaluated against NOAA IBTrACS v04r01 NA + EP tropical cyclone tracks in Mexico"
+  },
+  "models": [
+    {
+      "id": "flood_ensemble",
+      "name_es": "Ensamble Hidrometeorológico + Fusión Log-Odds (Inundaciones)",
+      "name_en": "Hydrometeorological Ensemble + Log-Odds Calibration (Floods)",
+      "algorithms": [
+        "LogisticRegression",
+        "RandomForestClassifier",
+        "ExtraTreesClassifier"
+      ],
+      "calibration": "Log-Odds (alpha=0.65 supervisado / 0.35 índice físico)",
+      "formula": "logit(P) = 0.65 * logit(P_ens) + 0.35 * z_phys + logit(base_rate)"
+    },
+    {
+      "id": "fire_ensemble",
+      "name_es": "Ensamble Térmico + VIIRS/EONET (Incendios Forestales)",
+      "name_en": "Thermal Ensemble + VIIRS/EONET (Wildfires)",
+      "algorithms": [
+        "LogisticRegression",
+        "RandomForestClassifier",
+        "ExtraTreesClassifier"
+      ],
+      "calibration": "Log-Odds calibrado sobre anomalías MODIS LST y NDVI",
+      "formula": "Ignition_Idx = 0.40*z(LST) + 0.35*z(-Soil) + 0.25*z(Wind) - z(NDVI)"
+    },
+    {
+      "id": "sar_autoencoder",
+      "name_es": "Detección de Anomalías Multivariadas (IsolationForest + PyTorch Autoencoder)",
+      "name_en": "Multivariate Anomaly Detection (IsolationForest + PyTorch Autoencoder)",
+      "algorithms": [
+        "IsolationForest",
+        "AnomalyAutoencoder (PyTorch CUDA)"
+      ],
+      "calibration": "Cuantil robusto p95 sobre error de reconstrucción MSE",
+      "formula": "L(x) = ||x - Decoder(Encoder(x))||^2_2"
+    }
+  ]
+}

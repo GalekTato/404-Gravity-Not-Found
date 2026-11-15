@@ -1,4 +1,5 @@
 import datetime
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,8 +8,10 @@ from nasa_api.services.catalog import (
     catalog_status,
     events_for_date,
     events_for_period,
+    model_metrics_summary,
     timemap_summary,
 )
+from nasa_api.services.excel import export_workbook
 
 
 def parse_target_period_or_date(params) -> tuple[str | None, str | None]:
@@ -129,5 +132,31 @@ class CatalogStatusView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             return Response(catalog_status(), status=status.HTTP_200_OK)
+        except (FileNotFoundError, ValueError) as error:
+            return Response({"available": False, "error": str(error)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class ExportEventsView(DisastersGeoJSONView):
+    @extend_schema(summary="Exportar indicadores filtrados como libro Excel (.xlsx)")
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        if response.status_code != 200:
+            return response
+        workbook = export_workbook(response.data["features"])
+        result = HttpResponse(
+            workbook,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        period = response.data["metadata"]["period"]
+        result["Content-Disposition"] = f'attachment; filename="earthsync-{period}.xlsx"'
+        result["Cache-Control"] = "no-store"
+        return result
+
+
+class ModelMetricsView(APIView):
+    @extend_schema(summary="Métricas de minería de datos, inventario de sensores y resumen territorial")
+    def get(self, request, *args, **kwargs):
+        try:
+            return Response(model_metrics_summary(), status=status.HTTP_200_OK)
         except (FileNotFoundError, ValueError) as error:
             return Response({"available": False, "error": str(error)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)

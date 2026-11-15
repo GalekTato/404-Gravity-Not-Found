@@ -1,11 +1,10 @@
 import type { Feature, Point } from 'geojson'
-import type { MarcaTimeMap, TipoDesastre } from '../funcionalidades/explorar/servicios/predicciones'
+import type { MarcaTimeMap, PropiedadesDesastre, TipoDesastre } from '../funcionalidades/explorar/servicios/predicciones'
 
-interface PropiedadesAudio {
-  type: TipoDesastre
-  severity: number
-  radius_km: number
-}
+type PropiedadesAudio = Pick<
+  PropiedadesDesastre,
+  'type' | 'severity' | 'radius_km' | 'score' | 'probability' | 'observed' | 'state_clave'
+>
 
 interface PasoMelodico {
   type: TipoDesastre
@@ -16,6 +15,8 @@ interface PasoMelodico {
 }
 
 interface OpcionesReproduccion {
+  idioma?: 'es' | 'en'
+  onStep?: (index: number, notaNombre: string) => void
   onStop?: () => void
   onError?: (error: unknown) => void
 }
@@ -25,11 +26,23 @@ export interface AudioPlayback {
 }
 
 export const INSTRUMENTOS_DESASTRE: Record<TipoDesastre, string> = {
-  sismo: 'percusión tectónica y bajo distorsionado',
-  huracan: 'sintetizador ambiental y pulsos circulares',
-  sequia: 'sintetizador minimalista y notas espaciadas',
-  inundacion: 'campanas fluidas y arpegio ondulante',
-  incendio: 'sintetizador electrónico y percusión rápida',
+  sismo: 'percusión tectónica y quintas graves',
+  huracan: 'sintetizador orbital por quintas',
+  sequia: 'sintetizador minimalista de quintas abiertas',
+  inundacion: 'campanas fluidas en ciclo de quintas',
+  incendio: 'sintetizador armónico de quintas rápidas',
+}
+
+export const INSTRUMENTOS_DESASTRE_EN: Record<TipoDesastre, string> = {
+  sismo: 'tectonic percussion & low fifths',
+  huracan: 'orbital fifths synthesizer',
+  sequia: 'minimalist open-fifths synth',
+  inundacion: 'fluid circle-of-fifths bells',
+  incendio: 'fast harmonic-fifths synth',
+}
+
+export function descripcionInstrumento(tipo: TipoDesastre, idioma: 'es' | 'en'): string {
+  return idioma === 'es' ? INSTRUMENTOS_DESASTRE[tipo] : INSTRUMENTOS_DESASTRE_EN[tipo]
 }
 
 interface PerfilSonoro {
@@ -47,7 +60,7 @@ const perfiles: Record<TipoDesastre, PerfilSonoro> = {
     wave: 'sawtooth',
     bassWave: 'triangle',
     degrees: [0, null, 2, 1, null, 3, 1, null, 2, 4, null, 1, 3, null, 2, 0],
-    gain: 0.12,
+    gain: 0.11,
     filter: 900,
   },
   huracan: {
@@ -79,19 +92,43 @@ const perfiles: Record<TipoDesastre, PerfilSonoro> = {
     wave: 'square',
     bassWave: 'sawtooth',
     degrees: [0, 1, 3, null, 2, 4, 3, 1, null, 4, 2, 3, 1, null, 2, 0],
-    gain: 0.1,
+    gain: 0.09,
     filter: 1400,
   },
 }
 
-const ESCALA_QUINTAS = [0, 7, 14, 2, 9, 16, 4, 11, 18, 6, 13, 20]
-const RAICES_QUINTAS = [36, 43, 38, 45, 40, 47, 42, 37, 44, 39, 46, 41]
+// Circle-of-fifths interval progression folded into a two-octave register.
+export const ESCALA_QUINTAS = [0, 7, 14, 2, 9, 16, 4, 11, 18, 6, 13, 20] as const
+export const RAICES_QUINTAS = [36, 43, 38, 45, 40, 47, 42, 37, 44, 39, 46, 41] as const
+const NOMBRES_NOTAS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
 
 let detenerReproduccionActiva: (() => void) | undefined
 
-function frecuenciaNota(degree: number, rootIndex: number): number {
-  const root = RAICES_QUINTAS[rootIndex]
-  return 440 * 2 ** ((root + ESCALA_QUINTAS[degree % ESCALA_QUINTAS.length] - 69) / 12)
+export function stopActiveAudio(): void {
+  detenerReproduccionActiva?.()
+}
+
+function midiANotaNombre(midi: number): string {
+  const clase = ((midi % 12) + 12) % 12
+  const octava = Math.floor(midi / 12) - 1
+  return `${NOMBRES_NOTAS[clase]}${octava}`
+}
+
+function frecuenciaNota(degree: number, rootIndex: number): { hz: number; nombre: string } {
+  const root = RAICES_QUINTAS[rootIndex % RAICES_QUINTAS.length]!
+  const midi = root + ESCALA_QUINTAS[degree % ESCALA_QUINTAS.length]!
+  return {
+    hz: 440 * 2 ** ((midi - 69) / 12),
+    nombre: midiANotaNombre(midi),
+  }
+}
+
+function crearAudioContext(): AudioContext {
+  const ConstructorAudio = window.AudioContext
+  if (!ConstructorAudio) {
+    throw new Error('Este navegador no admite reproducción de audio Web Audio API.')
+  }
+  return new ConstructorAudio()
 }
 
 function iniciarSecuencia(
@@ -102,10 +139,7 @@ function iniciarSecuencia(
 ): AudioPlayback {
   detenerReproduccionActiva?.()
 
-  const ConstructorAudio = window.AudioContext
-  if (!ConstructorAudio) throw new Error('Este navegador no admite reproducción de audio.')
-
-  const contexto = new ConstructorAudio()
+  const contexto = crearAudioContext()
   const salida = contexto.createGain()
   const compresor = contexto.createDynamicsCompressor()
   salida.gain.value = 0.72
@@ -128,14 +162,14 @@ function iniciarSecuencia(
       salida.gain.setTargetAtTime(0.0001, contexto.currentTime, 0.025)
     }
     window.setTimeout(() => {
-      void contexto.close()
+      void contexto.close().catch(() => {})
     }, 100)
     options.onStop?.()
   }
 
   detenerReproduccionActiva = detener
 
-  function tocar(paso: PasoMelodico, cuando: number) {
+  function tocar(paso: PasoMelodico, pasoIdx: number, cuando: number) {
     const perfil = perfiles[paso.type]
     const volumen = Math.max(0.035, Math.min(perfil.gain, perfil.gain * paso.intensity))
     const pan = paso.percussion ? -0.18 : 0.18
@@ -145,7 +179,10 @@ function iniciarSecuencia(
         ? [paso.degree, (paso.degree + 1) % ESCALA_QUINTAS.length]
         : [paso.degree]
 
+    let etiquetaNota = '—'
     for (const [indiceNota, degree] of notas.entries()) {
+      const { hz, nombre } = frecuenciaNota(degree, rootIndex)
+      if (indiceNota === 0) etiquetaNota = paso.chord ? `${nombre}+5a` : nombre
       const oscilador = contexto.createOscillator()
       const filtro = contexto.createBiquadFilter()
       const envolvente = contexto.createGain()
@@ -154,7 +191,7 @@ function iniciarSecuencia(
       const duracion = Math.max(0.12, segundosPorPaso * (paso.chord ? 0.86 : 0.72))
 
       oscilador.type = perfil.wave
-      oscilador.frequency.setValueAtTime(frecuenciaNota(degree, rootIndex), inicio)
+      oscilador.frequency.setValueAtTime(hz, inicio)
       filtro.type = 'lowpass'
       filtro.frequency.setValueAtTime(perfil.filter * (0.7 + paso.intensity * 0.3), inicio)
       envolvente.gain.setValueAtTime(0.0001, inicio)
@@ -169,16 +206,19 @@ function iniciarSecuencia(
     if (paso.percussion) {
       const bajo = contexto.createOscillator()
       const golpe = contexto.createGain()
+      const base = frecuenciaNota(0, rootIndex).hz
       bajo.type = perfil.bassWave
-      bajo.frequency.setValueAtTime(Math.max(38, frecuenciaNota(0, rootIndex) / 2), cuando)
+      bajo.frequency.setValueAtTime(Math.max(38, base / 2), cuando)
       bajo.frequency.exponentialRampToValueAtTime(38, cuando + 0.16)
       golpe.gain.setValueAtTime(0.0001, cuando)
-      golpe.gain.exponentialRampToValueAtTime(0.13 * paso.intensity, cuando + 0.012)
+      golpe.gain.exponentialRampToValueAtTime(0.12 * paso.intensity, cuando + 0.012)
       golpe.gain.exponentialRampToValueAtTime(0.0001, cuando + 0.2)
       bajo.connect(golpe).connect(salida)
       bajo.start(cuando)
       bajo.stop(cuando + 0.22)
     }
+
+    options.onStep?.(pasoIdx, etiquetaNota)
   }
 
   void contexto.resume().then(() => {
@@ -188,7 +228,7 @@ function iniciarSecuencia(
       if (contexto.state !== 'running') return
       const limite = contexto.currentTime + 0.12
       while (proximoPaso < limite) {
-        tocar(pasos[indice], proximoPaso)
+        tocar(pasos[indice]!, indice, proximoPaso)
         indice = (indice + 1) % pasos.length
         proximoPaso += segundosPorPaso
       }
@@ -205,15 +245,18 @@ export function startDisasterLoop(
   feature: Feature<Point, PropiedadesAudio>,
   options?: OpcionesReproduccion,
 ): AudioPlayback {
-  const { type, severity } = feature.properties
+  const { type, severity, probability, score, observed, state_clave } = feature.properties
   const [, latitude] = feature.geometry.coordinates
   const perfil = perfiles[type]
-  const raiz = Math.floor(Math.abs(latitude)) % RAICES_QUINTAS.length
+  const claveNum = state_clave ? Number.parseInt(state_clave, 10) : Math.floor(Math.abs(latitude))
+  const raiz = (Number.isFinite(claveNum) ? claveNum : Math.floor(Math.abs(latitude))) % RAICES_QUINTAS.length
+  const probBoost = typeof probability === 'number' ? Math.round(probability * 3) : typeof score === 'number' ? Math.round(Math.abs(score)) % 3 : 0
+
   const pasos = perfil.degrees.map((degree, index): PasoMelodico => ({
     type,
-    degree,
+    degree: degree === null ? null : (degree + probBoost) % ESCALA_QUINTAS.length,
     intensity: Math.max(0.3, Math.min(1, severity / 7)),
-    chord: degree !== null && index % 4 === 0,
+    chord: degree !== null && (observed ? index % 2 === 0 : index % 4 === 0),
     percussion: degree !== null && [0, 4, 8, 12].includes(index),
   }))
 
@@ -224,24 +267,59 @@ export function startTimeMapLoop(
   marcas: readonly MarcaTimeMap[],
   options?: OpcionesReproduccion,
 ): AudioPlayback {
-  if (marcas.length === 0) throw new Error('La gráfica no contiene datos para sonificar.')
+  if (marcas.length === 0) {
+    throw new Error(
+      options?.idioma === 'en'
+        ? 'The timeline has no records to sonify.'
+        : 'La gráfica no contiene datos para sonificar.',
+    )
+  }
 
   const pasos = marcas.map((marca, index): PasoMelodico => {
     const type = marca.dominant_type
     const densidad = Math.log2(marca.total + 1) / 5
-    const degree = Math.min(ESCALA_QUINTAS.length - 1, Math.round(
-      marca.max_severity * 0.65 + densidad * 4 + index % 3,
-    ))
+    const degree = Math.min(
+      ESCALA_QUINTAS.length - 1,
+      Math.round(marca.max_severity * 0.65 + densidad * 4 + (index % 3)),
+    )
     const ritmo = perfiles[type].degrees
     return {
       type,
       degree,
       intensity: Math.max(0.25, Math.min(1, marca.max_severity / 10 + densidad * 0.35)),
-      chord: marca.total >= 8 || marca.observed_count > 0,
+      chord: marca.total >= 6 || marca.observed_count > 0,
       percussion: ritmo[index % ritmo.length] !== null,
     }
   })
   const raiz = marcas.reduce((suma, marca) => suma + Number(marca.period.slice(-2)), 0) % RAICES_QUINTAS.length
 
-  return iniciarSecuencia(pasos, 0.28, raiz, options)
+  return iniciarSecuencia(pasos, 0.24, raiz, options)
+}
+
+export function playQuintasEasterEgg(): void {
+  try {
+    const ctx = crearAudioContext()
+    const master = ctx.createGain()
+    master.gain.value = 0.2
+    master.connect(ctx.destination)
+    void ctx.resume().then(() => {
+      const now = ctx.currentTime + 0.02
+      ;[0, 1, 2, 4, 6].forEach((deg, idx) => {
+        const osc = ctx.createOscillator()
+        const env = ctx.createGain()
+        const { hz } = frecuenciaNota(deg, 0)
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(hz * 2, now + idx * 0.07)
+        env.gain.setValueAtTime(0.0001, now + idx * 0.07)
+        env.gain.exponentialRampToValueAtTime(0.25, now + idx * 0.07 + 0.02)
+        env.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.07 + 0.45)
+        osc.connect(env).connect(master)
+        osc.start(now + idx * 0.07)
+        osc.stop(now + idx * 0.07 + 0.48)
+      })
+      window.setTimeout(() => { void ctx.close().catch(() => {}) }, 1000)
+    })
+  } catch {
+    // Ignore audio context errors on restricted devices.
+  }
 }

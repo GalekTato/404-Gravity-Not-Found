@@ -7,24 +7,32 @@ import { proyecto } from '../../../configuracion/proyecto'
 import { MiniTutorial } from '../../../componentes/ui/MiniTutorial'
 import { Icon } from '../../../componentes/ui/Icon'
 import { GlobeControls } from '../componentes/GlobeControls'
-import { TimeMapBar } from '../componentes/TimeMapBar'
 import { RegionInfoPanel } from '../componentes/RegionInfoPanel'
 import { TimeMapBar } from '../componentes/TimeMapBar'
 import { useGeografia, useMunicipios } from '../hooks/useGeografia'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { exportarExcel } from '../servicios/exportar'
 import type { EstadoCapaMunicipal, EstadoPredicciones, MapaHandle } from '../tipos/cartografia'
+import { playQuintasEasterEgg } from '../../../utils/disasterSound'
 
 const MexicoMap = lazy(() => import('../componentes/MexicoMap').then(module => ({ default: module.MexicoMap })))
 
-export function ExplorarPage() {
+export function ExplorarPage({ activa = true }: { activa?: boolean }) {
   const { t } = useIdioma()
   const { datos, error, reintentar } = useGeografia()
   const mapaRef = useRef<MapaHandle>(null)
   const herramientasRef = useRef<HTMLDetailsElement>(null)
   const [disponible, setDisponible] = useState(false)
-  const { periodo: fechaPrediccion, estado: claveEntidad, tipo: tipoPrediccion, setPeriodo: setFechaPrediccion,
-    setEstado: setClaveEntidad, setTipo: setTipoPrediccion, consulta } = useFiltrosCatalogo()
+  const {
+    periodo: fechaPrediccion,
+    estado: claveEntidad,
+    tipo: tipoPrediccion,
+    setPeriodo: setFechaPrediccion,
+    setEstado: setClaveEntidad,
+    setTipo: setTipoPrediccion,
+    consulta,
+  } = useFiltrosCatalogo()
+
   const [claveMunicipio, setClaveMunicipio] = useState<string>()
   const [mostrarLimites, setMostrarLimites] = useState(true)
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true)
@@ -34,12 +42,21 @@ export function ExplorarPage() {
   const [estadoCapaMunicipal, setEstadoCapaMunicipal] = useState<EstadoCapaMunicipal>()
   const [exportando, setExportando] = useState(false)
   const [errorExportacion, setErrorExportacion] = useState(false)
+  const [easterToast, setEasterToast] = useState(false)
+
   const entidad = datos?.catalogo.find(item => item.clave === claveEntidad)
   const municipales = useMunicipios(entidad?.clave)
   const dibujando = !!municipales.datos && (estadoCapaMunicipal?.clave !== entidad?.clave || estadoCapaMunicipal?.estado === 'cargando')
   const municipio = municipales.datos?.features.find(item => item.properties.clave === claveMunicipio)
   const seleccionarEntidad = useCallback((clave: string) => { setClaveEntidad(clave || undefined); setClaveMunicipio(undefined) }, [setClaveEntidad])
   const seleccionarMunicipio = useCallback((clave: string) => { if (!clave || clave.startsWith(claveEntidad ?? '-')) setClaveMunicipio(clave || undefined) }, [claveEntidad])
+
+  useEffect(() => {
+    if (!activa) return
+    const id = window.requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+    return () => window.cancelAnimationFrame(id)
+  }, [activa])
+
   useEffect(() => {
     function cerrar(event: globalThis.PointerEvent | KeyboardEvent) {
       const menu = herramientasRef.current
@@ -53,6 +70,7 @@ export function ExplorarPage() {
     document.addEventListener('keydown', cerrar)
     return () => { document.removeEventListener('pointerdown', cerrar); document.removeEventListener('keydown', cerrar) }
   }, [])
+
   function reflejo(event: PointerEvent<HTMLElement>) {
     if (event.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const rect = event.currentTarget.getBoundingClientRect()
@@ -64,9 +82,16 @@ export function ExplorarPage() {
     setExportando(true); setErrorExportacion(false)
     try { await exportarExcel(fechaPrediccion, tipoPrediccion, claveEntidad) } catch { setErrorExportacion(true) } finally { setExportando(false) }
   }
+  function activarEasterEgg() {
+    playQuintasEasterEgg()
+    setEasterToast(true)
+    window.setTimeout(() => setEasterToast(false), 2600)
+    window.open(proyecto.github, '_blank', 'noopener,noreferrer')
+  }
+
   return <section className="explorer-workspace" aria-label={t('Explorador de México', 'Mexico explorer')}>
     <header className="map-liquid-toolbar" onPointerMove={reflejo}>
-      <Link to="/" className="project-brand"><img src={proyecto.logoEquipo} alt={proyecto.equipo} width="36" height="36"/><h1>{proyecto.nombre}</h1></Link>
+      <Link to="/" className="project-brand"><img src={proyecto.logoEquipo} alt={proyecto.equipo} width="36" height="36"/><h1>{proyecto.nombreCorto}</h1></Link>
       <label className="state-filter"><span>{t('Territorio', 'Area')}</span><select aria-label={t('Filtrar por estado', 'Filter by state')} value={claveEntidad ?? ''} disabled={!datos} onChange={event => seleccionarEntidad(event.target.value)}><option value="">{t('Todo México', 'All Mexico')}</option>{datos?.catalogo.map(item => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}</select></label>
       <div className="map-header-actions"><MiniTutorial/><SelectorIdioma/>
         <details className="map-tools-menu" ref={herramientasRef}>
@@ -88,15 +113,31 @@ export function ExplorarPage() {
       </aside>}
       <div className="map-canvas-wrapper">
         <Suspense fallback={<div className="map-loading" role="status">{t('Cargando mapa…', 'Loading map…')}</div>}><MexicoMap ref={mapaRef} geografia={datos} entidad={entidad} municipios={municipales.datos} municipio={claveMunicipio}
-          mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios} mostrarPredicciones fechaPrediccion={fechaPrediccion || undefined} tipoPrediccion={tipoPrediccion} intentoPredicciones={intentoPredicciones}
+          mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios} mostrarPredicciones={activa} fechaPrediccion={fechaPrediccion || undefined} tipoPrediccion={tipoPrediccion} intentoPredicciones={intentoPredicciones}
           onEstadoPredicciones={setEstadoPredicciones} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio} onReadyChange={setDisponible} onEstadoCapaMunicipal={setEstadoCapaMunicipal}/></Suspense>
         <GlobeControls disabled={!disponible} onZoom={delta => mapaRef.current?.zoom(delta)} onReset={restablecer}/>
       </div>
     </div>
-    <div className="map-data-status" role="status"><span>{entidad?.nombre ?? t('Todo México', 'All Mexico')} · {estadoPredicciones.estado === 'listo' ? `${estadoPredicciones.total} ${t(estadoPredicciones.total === 1 ? 'registro' : 'registros', estadoPredicciones.total === 1 ? 'record' : 'records')}` : estadoPredicciones.estado === 'error' ? t('Error de conexión', 'Connection error') : t('Consultando…', 'Loading…')}
-      {estadoPredicciones.estado === 'error' && <button onClick={() => setIntentoPredicciones(value => value + 1)}>{t('Reintentar', 'Retry')}</button>}</span><span>{t('Indicadores, no alertas oficiales', 'Indicators, not official alerts')}</span>
+    <div className="map-data-status" role="status">
+      <span>{entidad?.nombre ?? t('Todo México', 'All Mexico')} · {estadoPredicciones.estado === 'listo' ? `${estadoPredicciones.total} ${t(estadoPredicciones.total === 1 ? 'registro' : 'registros', estadoPredicciones.total === 1 ? 'record' : 'records')}` : estadoPredicciones.estado === 'error' ? t('Error de conexión', 'Connection error') : t('Consultando…', 'Loading…')}
+        {estadoPredicciones.estado === 'error' && <button onClick={() => setIntentoPredicciones(value => value + 1)}>{t('Reintentar', 'Retry')}</button>}
+      </span>
+      <span className="map-status-team">
+        {t('Equipo:', 'Team:')} {proyecto.integrantes.join(' · ')}
+        <button
+          type="button"
+          className="easter-egg-trigger"
+          onClick={activarEasterEgg}
+          title={t('Anomalía orbital 404 — Abrir repositorio en GitHub', 'Orbital anomaly 404 — Open GitHub repository')}
+        >
+          🛰️ 404-GNF ↗
+        </button>
+      </span>
+      {easterToast && <span role="status" className="easter-egg-toast">{t('Telemetría orbital 404 desbloqueada → GitHub', 'Orbital telemetry 404 unlocked → GitHub')}</span>}
+      <span>{t('Indicadores, no alertas oficiales', 'Indicators, not official alerts')}</span>
       {!datos && <span role={error ? 'alert' : 'status'}>{error ? <button onClick={reintentar}>{t('Reintentar cartografía', 'Retry boundaries')}</button> : t('Cargando cartografía…', 'Loading boundaries…')}</span>}
-      {errorExportacion && <span role="alert">{t('No se pudo exportar. Reintenta.', 'Export failed. Please retry.')}</span>}</div>
-    <TimeMapBar periodo={fechaPrediccion} tipoFiltro={tipoPrediccion} estadoFiltro={claveEntidad} onChangePeriodo={setFechaPrediccion} onChangeTipoFiltro={setTipoPrediccion}/>
+      {errorExportacion && <span role="alert">{t('No se pudo exportar. Reintenta.', 'Export failed. Please retry.')}</span>}
+    </div>
+    <TimeMapBar periodo={fechaPrediccion} tipoFiltro={tipoPrediccion} estadoFiltro={claveEntidad} estadoNombre={entidad?.nombre} pausado={!activa} onChangePeriodo={setFechaPrediccion} onChangeTipoFiltro={setTipoPrediccion}/>
   </section>
 }

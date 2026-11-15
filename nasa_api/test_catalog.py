@@ -1,12 +1,22 @@
 import os
 from datetime import date
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from xml.etree import ElementTree
+from zipfile import ZipFile
 
 import pandas as pd
 
-from nasa_api.services.catalog import clear_catalog_cache, events_for_date, events_for_period, timemap_summary
+from nasa_api.services.catalog import (
+    clear_catalog_cache,
+    events_for_date,
+    events_for_period,
+    model_metrics_summary,
+    timemap_summary,
+)
+from nasa_api.services.excel import export_workbook
 
 
 class CatalogServiceTests(TestCase):
@@ -53,6 +63,27 @@ class CatalogServiceTests(TestCase):
 
     def test_unknown_month_returns_no_events(self):
         self.assertEqual(events_for_date(date(2026, 2, 15)), [])
+
+    def test_state_filter_does_not_return_national_fallback(self):
+        self.assertEqual(events_for_date(date(2026, 1, 15), state_clave="12"), [])
+
+    def test_excel_preserves_text_without_formulas(self):
+        event = events_for_date(date(2026, 1, 15))[0]
+        event["properties"]["name"] = '=HYPERLINK("https://example.com")'
+        with ZipFile(BytesIO(export_workbook([event]))) as workbook:
+            sheet = ElementTree.fromstring(workbook.read("xl/worksheets/sheet1.xml"))
+            namespace = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            self.assertEqual(len(sheet.findall("s:sheetData/s:row", namespace)), 2)
+            self.assertEqual(sheet.findall(".//s:f", namespace), [])
+            cell = sheet.find('.//s:c[@r="G2"]/s:is/s:t', namespace)
+            self.assertIsNotNone(cell)
+            self.assertEqual(cell.text, event["properties"]["name"])
+
+    def test_model_metrics_summary_structure(self):
+        summary = model_metrics_summary()
+        self.assertTrue(summary["available"])
+        self.assertEqual(summary["database_engine"], "postgresql")
+        self.assertGreaterEqual(len(summary["models"]), 3)
 
     def test_spatial_catalog_and_timemap_multi_state(self):
         output = Path(self.temporary_directory.name) / "data" / "processed"

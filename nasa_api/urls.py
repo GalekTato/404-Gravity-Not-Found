@@ -5,7 +5,13 @@ from django.conf.urls.static import static
 
 from nasa_api.views.bootstrap import VersionView
 from nasa_api.views.auth import CustomAuthToken, Logout
-from nasa_api.views.Prediction import CatalogStatusView, DisastersGeoJSONView, TimeMapView
+from nasa_api.views.Prediction import (
+    CatalogStatusView,
+    DisastersGeoJSONView,
+    ExportEventsView,
+    ModelMetricsView,
+    TimeMapView,
+)
 
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -21,11 +27,15 @@ urlpatterns = [
     path('api/login/', CustomAuthToken.as_view(), name='api-login'),
     path('api/logout/', Logout.as_view(), name='api-logout'),
 
-    # Hazard indicators, TimeMap timeline, and GeoJSON points
+    # Hazard indicators, TimeMap timeline, GeoJSON points, export, and model metrics
     path('api/disasters/', DisastersGeoJSONView.as_view(), name='disasters-geojson'),
     path('api/predictions/', DisastersGeoJSONView.as_view(), name='predictions-geojson'),
+    path('api/predicciones/', DisastersGeoJSONView.as_view(), name='predicciones-geojson'),
     path('api/timemap/', TimeMapView.as_view(), name='timemap-timeline'),
+    path('api/predicciones/timemap/', TimeMapView.as_view(), name='predicciones-timemap'),
+    path('api/export/', ExportEventsView.as_view(), name='export-events'),
     path('api/catalog/status/', CatalogStatusView.as_view(), name='catalog-status'),
+    path('api/model-metrics/', ModelMetricsView.as_view(), name='model-metrics'),
 
     # Swagger and OpenAPI documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

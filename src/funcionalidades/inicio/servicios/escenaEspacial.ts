@@ -134,9 +134,9 @@ export function crearEscenaEspacial({ contenedor, encuadre, animar, onLista, onE
   function activar() { anterior = 0; if (!frame && !destruida && visible && !document.hidden && contextoValido) frame = requestAnimationFrame(ejecutar) }
   function redimensionar() {
     const ancho = contenedor.clientWidth, alto = contenedor.clientHeight
-    if (!ancho || !alto || destruida) return
+    if (ancho < 2 || alto < 2 || destruida) return
     const area = encuadre.getBoundingClientRect(), fondo = contenedor.getBoundingClientRect()
-    if (!area.width || !area.height) return
+    if (area.width < 2 || area.height < 2) return
     camera.aspect = area.width / area.height
     const distanciaNueva = distanciaInicial * (camera.aspect < 1 ? 1.08 / camera.aspect : 1)
     camera.position.setLength(camera.position.length() / distanciaEncuadre * distanciaNueva)
@@ -146,7 +146,11 @@ export function crearEscenaEspacial({ contenedor, encuadre, animar, onLista, onE
     // Amplía el campo estelar a todo el hero y conserva el globo en su columna.
     camera.setViewOffset(area.width, area.height, fondo.left - area.left, fondo.top - area.top, ancho, alto)
     camera.updateProjectionMatrix()
-    renderer.setSize(ancho, alto)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
+    renderer.setSize(ancho, alto, false)
+    renderer.domElement.style.width = `${ancho}px`
+    renderer.domElement.style.height = `${alto}px`
+    renderer.setViewport(0, 0, ancho, alto)
     estrellas.material.uniforms.densidad.value = renderer.getPixelRatio()
     dibujar()
   }
@@ -212,7 +216,6 @@ export function crearEscenaEspacial({ contenedor, encuadre, animar, onLista, onE
       materiales.forEach(material => material.dispose())
       texture.dispose()
       renderer.dispose()
-      renderer.forceContextLoss()
       renderer.domElement.remove()
     },
   }

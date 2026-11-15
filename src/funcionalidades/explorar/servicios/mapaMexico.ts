@@ -9,27 +9,53 @@ export const teselasRelieve = ['https://ows.terrestris.de/osm/service?SERVICE=WM
 export const opacidadEstados: ExpressionSpecification = ['case', ['boolean', ['feature-state', 'seleccionado'], false], .07, ['boolean', ['feature-state', 'hover'], false], .12, .01]
 const limitesNavegacion: Limites = [-126, 8, -79, 40]
 function margenNacional(container: HTMLElement) {
-  return Math.max(32, Math.round(Math.min(container.clientWidth, container.clientHeight) * .14))
+  return Math.max(20, Math.round(Math.min(container.clientWidth, container.clientHeight) * .11))
 }
+
 export function ajustarVista(map: Map, limites: Limites, animar = true) {
   const container = map.getContainer()
-  if (!container.clientWidth || !container.clientHeight) return
+  const w = container.clientWidth
+  const h = container.clientHeight
+  if (w < 160 || h < 160) return
   const nacional = limites.every((valor, index) => valor === limitesMexico[index])
-  const margen = nacional ? margenNacional(container) : container.clientWidth < 500 ? 24 : 45
+  const margen = nacional ? margenNacional(container) : w < 500 ? 18 : 36
   const barra = container.closest('.explorer-workspace')?.querySelector('.map-liquid-toolbar')
-  const espacioSuperior = barra ? barra.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 12 : margen
-  const padding = { top: Math.max(margen, Math.min(container.clientHeight / 2, espacioSuperior)), bottom: margen, left: margen, right: margen }
-  map.fitBounds(limites, { padding, maxZoom: 10, bearing: 0, pitch: 0,
-    duration: animar && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 650 : 0 })
+  const espacioSuperior = barra
+    ? Math.max(0, barra.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 10)
+    : margen
+  const maxPadTop = Math.max(16, Math.floor(h * .28))
+  const padTop = Math.min(maxPadTop, Math.max(Math.min(margen, maxPadTop), Math.round(espacioSuperior * .6)))
+  const padBottom = Math.min(Math.max(12, Math.floor(h * .14)), margen)
+  const padSide = Math.min(Math.max(16, Math.floor(w * .22)), margen)
+  const padding = { top: padTop, bottom: padBottom, left: padSide, right: padSide }
+  if (padding.top + padding.bottom >= h - 48 || padding.left + padding.right >= w - 48) return
+  try {
+    map.fitBounds(limites, {
+      padding,
+      maxZoom: 10,
+      bearing: 0,
+      pitch: 0,
+      duration: animar && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 650 : 0,
+    })
+  } catch {
+    // Container dimensions temporarily constrained; ResizeObserver will re-fit once layout settles.
+  }
 }
+
 export function crearMapa(container: HTMLDivElement) {
   // MapLibre 6 distribuye el worker separado; Vite debe resolver y emitir su URL.
   setWorkerUrl(workerUrl)
+  const listoParaBounds = container.clientWidth >= 180 && container.clientHeight >= 180
+  const padInicial = Math.min(
+    margenNacional(container),
+    Math.max(12, Math.floor(Math.min(container.clientWidth || 320, container.clientHeight || 320) * .16)),
+  )
   const map = new Map({
     container,
     style: { version: 8, sources: {}, layers: [{ id: 'fondo', type: 'background', paint: { 'background-color': '#101f29' } }] },
-    bounds: limitesMexico,
-    fitBoundsOptions: { padding: margenNacional(container) },
+    ...(listoParaBounds
+      ? { bounds: limitesMexico, fitBoundsOptions: { padding: padInicial } }
+      : { center: [-102.5, 23.6], zoom: 4.3 }),
     maxBounds: limitesNavegacion,
     minZoom: 2,
     maxZoom: 13,

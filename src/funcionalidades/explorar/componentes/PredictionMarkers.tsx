@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { Feature, Point } from 'geojson'
 import { useIdioma } from '../../../configuracion/idiomaContexto'
 import { Popup, type GeoJSONSource, type Map, type MapMouseEvent } from 'maplibre-gl'
 import { registrarIconosAmenaza } from '../servicios/iconosAmenazaMapa'
@@ -10,13 +11,13 @@ import {
 } from '../servicios/predicciones'
 import type { PropiedadesDesastre, TipoDesastre } from '../servicios/predicciones'
 import type { EstadoPredicciones } from '../tipos/cartografia'
+import { startDisasterLoop, type AudioPlayback } from '../../../utils/disasterSound'
 
 const FUENTE = 'predicciones-source'
 const CAPA_PUNTOS = 'predicciones-puntos'
 
 function asegurarCapas(map: Map) {
   registrarIconosAmenaza(map)
-  // Also replace an existing circle layer during a development hot reload.
   if (map.getLayer('predicciones-halo')) map.removeLayer('predicciones-halo')
   if (map.getLayer(CAPA_PUNTOS) && map.getLayer(CAPA_PUNTOS)?.type !== 'symbol') map.removeLayer(CAPA_PUNTOS)
   if (!map.getSource(FUENTE)) {
@@ -74,7 +75,6 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
   }
 }
 
-
 export function PredictionMarkers({
   sesion,
   visible,
@@ -94,13 +94,47 @@ export function PredictionMarkers({
 }) {
   const { idioma } = useIdioma()
   const popupRef = useRef<Popup | null>(null)
-  const datosPopupRef = useRef<PropiedadesDesastre | undefined>(undefined)
+  const datosPopupRef = useRef<{ props: PropiedadesDesastre; coordinates: [number, number] } | undefined>(undefined)
+  const audioRef = useRef<{ id: string; playback: AudioPlayback } | null>(null)
   const idiomaRef = useRef(idioma)
+
+  function toggleAudioParaEvento(props: PropiedadesDesastre, coordinates: [number, number]): boolean {
+    if (audioRef.current?.id === props.id) {
+      audioRef.current.playback.stop()
+      audioRef.current = null
+      return false
+    }
+    audioRef.current?.playback.stop()
+    audioRef.current = null
+    try {
+      const audioFeature: Feature<Point, PropiedadesDesastre> = {
+        type: 'Feature',
+        properties: props,
+        geometry: { type: 'Point', coordinates },
+      }
+      const playback = startDisasterLoop(audioFeature, {
+        idioma: idiomaRef.current,
+        onStop: () => {
+          if (audioRef.current?.id === props.id) audioRef.current = null
+        },
+      })
+      audioRef.current = { id: props.id, playback }
+      return true
+    } catch {
+      return false
+    }
+  }
 
   useEffect(() => {
     idiomaRef.current = idioma
     if (popupRef.current?.isOpen() && datosPopupRef.current) {
-      popupRef.current.setDOMContent(contenidoPopup(datosPopupRef.current, idioma))
+      const { props, coordinates } = datosPopupRef.current
+      popupRef.current.setDOMContent(
+        contenidoPopup(props, idioma, {
+          activo: audioRef.current?.id === props.id,
+          onToggleAudio: () => toggleAudioParaEvento(props, coordinates),
+        }),
+      )
     }
   }, [idioma])
 
@@ -110,7 +144,13 @@ export function PredictionMarkers({
     const { map } = mapaSesion
     const controller = new AbortController()
 
+    function detenerAudio() {
+      audioRef.current?.playback.stop()
+      audioRef.current = null
+    }
+
     function cerrarPopup() {
+      detenerAudio()
       popupRef.current?.remove()
       popupRef.current = null
       datosPopupRef.current = undefined
@@ -125,7 +165,6 @@ export function PredictionMarkers({
       }
 
       onEstado?.({ estado: 'cargando' })
-      fijarVisibilidad(map, false)
       cerrarPopup()
       try {
         const datos = await obtenerPredicciones(fecha, controller.signal, tipo, estadoFiltro)
@@ -138,7 +177,6 @@ export function PredictionMarkers({
         if (controller.signal.aborted || !mapaSesion.activa) return
 
         fijarVisibilidad(map, true)
-        cerrarPopup()
         onEstado?.({
           estado: 'listo',
           total: datos.metadata?.count ?? datos.features.length,
@@ -162,12 +200,22 @@ export function PredictionMarkers({
       const props = propiedadesDesde(feature)
       if (!props || feature.geometry.type !== 'Point') return
 
+      const coords = feature.geometry.coordinates as [number, number]
       cerrarPopup()
-      datosPopupRef.current = props
-      popupRef.current = new Popup({ offset: 20, closeButton: true, className: 'prediccion-popup' })
-        .setLngLat(feature.geometry.coordinates as [number, number])
-        .setDOMContent(contenidoPopup(props, idiomaRef.current))
+      datosPopupRef.current = { props, coordinates: coords }
+      const popup = new Popup({ offset: 20, closeButton: true, className: 'prediccion-popup' })
+        .setLngLat(coords)
+        .setDOMContent(
+          contenidoPopup(props, idiomaRef.current, {
+            activo: audioRef.current?.id === props.id,
+            onToggleAudio: () => toggleAudioParaEvento(props, coords),
+          }),
+        )
         .addTo(map)
+      popup.on('close', () => {
+        if (audioRef.current?.id === props.id) detenerAudio()
+      })
+      popupRef.current = popup
     }
 
     void sincronizar()

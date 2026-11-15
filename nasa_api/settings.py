@@ -150,7 +150,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
+        'anon': os.environ.get('DRF_ANON_RATE', '600/min'),
         'user': '1000/day',
     }
 }
