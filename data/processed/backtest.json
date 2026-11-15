@@ -1,0 +1,40 @@
+{
+  "results": [
+    {
+      "brier_score": 0.23434374478811115,
+      "f1": 0.5,
+      "hazard_type": "incendio",
+      "positive_test_months": 9,
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "roc_auc": 0.8571428571428572,
+      "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires",
+      "test_months": 23,
+      "threshold": -0.42730808342277704,
+      "train_months": 92
+    },
+    {
+      "brier_score": 0.05178596040866432,
+      "f1": 0.975609756097561,
+      "hazard_type": "inundacion",
+      "positive_test_months": 20,
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "roc_auc": 0.9944444444444445,
+      "source": "NOAA IBTrACS v04r01 (NA + EP tropical cyclone tracks in Mexico)",
+      "test_months": 38,
+      "threshold": 0.16723544968050746,
+      "train_months": 151
+    }
+  ],
+  "skipped": [
+    {
+      "hazard_type": "sequia",
+      "reason": "No independent ground-truth labels are available for hazard 'sequia'."
+    },
+    {
+      "hazard_type": "sismo",
+      "reason": "Catalog has zero finite values for 'tectonic_score_proxy' (insufficient sensor/SAR temporal pairs)."
+    }
+  ]
+}

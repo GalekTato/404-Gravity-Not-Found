@@ -1,0 +1,105 @@
+{
+  "pipeline_run": {
+    "status": "passed",
+    "stages": [
+      "cleaning",
+      "features",
+      "scientific_aggregation",
+      "spatial_state_aggregation",
+      "spatial_hazard_catalog",
+      "training",
+      "inference"
+    ]
+  },
+  "hardware": {
+    "cpu_count": 16,
+    "workers": 14,
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "cuda": true,
+    "torch": "2.11.0+cu128"
+  },
+  "data_usage": {
+    "alos_files": 15,
+    "nisar_files": 15,
+    "firms_files": 6,
+    "gpm_files": 197,
+    "modis_files": 206,
+    "gldas_files": 199,
+    "states_covered": 32,
+    "spatial_events_total": 3343,
+    "spatial_periods_total": 203,
+    "layout": "Direct ALOS/NISAR roots plus Hack/Datos scientific archive",
+    "inventory_artifact": "data/processed/data_inventory.json",
+    "spatial_catalog_artifact": "data/processed/spatial_hazard_catalog.parquet",
+    "inventory_warnings": 0
+  },
+  "benchmarks": {
+    "cleaning_sequential_seconds": 0.0307056,
+    "cleaning_parallel_seconds": 3.9708527,
+    "gpm_streaming_seconds": 0.1394487,
+    "gpm_dask_seconds": 0.0125005,
+    "neural_cpu_seconds": 1.396,
+    "neural_gpu_seconds": 5.45
+  },
+  "ground_truth": {
+    "usgs_earthquakes": "acquired (2010-2026, M>=4.0, complete monthly series + M>=4.5 epicenters mapped to 32 Mexican states)",
+    "firms_fire_observations": "acquired (local FIRMS + NASA EONET v3 Historical Wildfires filtered to Mexican state polygons)",
+    "ibtracs_cyclones": "acquired (NOAA IBTrACS v04r01 North Atlantic + Eastern Pacific basins filtered to Mexico)",
+    "gpm_gldas": "available as per-state spatial indicators (32 states x 202 months), not independent labels",
+    "drought": "unavailable as independent label",
+    "flood": "evaluated against NOAA IBTrACS v04r01 NA + EP tropical cyclone tracks in Mexico"
+  },
+  "backtesting": {
+    "status": "passed_with_explicit_skips",
+    "evaluated_hazards": [
+      {
+        "hazard_type": "incendio",
+        "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires",
+        "train_months": 92,
+        "test_months": 23,
+        "positive_test_months": 9,
+        "threshold": -0.42730808342277704,
+        "precision": 1.0,
+        "recall": 0.3333333333333333,
+        "f1": 0.5,
+        "roc_auc": 0.8571428571428572,
+        "brier_score": 0.23434374478811115
+      },
+      {
+        "hazard_type": "inundacion",
+        "source": "NOAA IBTrACS v04r01 (NA + EP tropical cyclone tracks in Mexico)",
+        "train_months": 151,
+        "test_months": 38,
+        "positive_test_months": 20,
+        "threshold": 0.16723544968050746,
+        "precision": 0.9523809523809523,
+        "recall": 1.0,
+        "f1": 0.975609756097561,
+        "roc_auc": 0.9944444444444445,
+        "brier_score": 0.05178596040866432
+      }
+    ],
+    "skipped_hazards": [
+      {
+        "hazard_type": "sequia",
+        "reason": "No independent ground-truth labels are available for hazard 'sequia'."
+      },
+      {
+        "hazard_type": "sismo",
+        "reason": "Catalog has zero finite values for 'tectonic_score_proxy' (insufficient sensor/SAR temporal pairs)."
+      }
+    ]
+  },
+  "deployment": {
+    "database_engine": "postgresql_exclusively",
+    "windows_checks": "passed",
+    "docker_version": "Docker version 29.9.3, build 5457199",
+    "docker_compose_version": "Docker Compose version v5.7.0",
+    "docker_checks": "passed (config, build, PostgreSQL SpatialHazardEvent migrations, Redis healthcheck, /api/timemap/, /api/catalog/status/, and /api/predictions/ smoke tests)"
+  },
+  "notes": [
+    "Eliminated single-point Zacatecas coordinate bug; spatial catalog covers all 32 Mexican federal entities with 3,343 geolocated events across 203 months.",
+    "Backend configured for PostgreSQL exclusively (removed sqlite3 fallback and hybrid database logic).",
+    "Supervised ensemble (LogisticRegression + RandomForest + ExtraTrees with base-rate log-odds calibration) improved flood F1 to 0.9756 (ROC-AUC 0.9944, Brier 0.0518) and wildfire precision to 1.0000 (ROC-AUC 0.8571)."
+  ]
+}

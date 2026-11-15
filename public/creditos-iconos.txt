@@ -1,0 +1,16 @@
+Iconos Solar Bold Duotone
+
+Autor: 480 Design
+Obra original: https://www.figma.com/community/file/1166831539721848736
+Distribución SVG: https://github.com/iconify/icon-sets/blob/master/json/solar.json
+Licencia: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Iconos utilizados en la navegación:
+- planet-bold-duotone: Inicio
+- map-bold-duotone: Explorar
+- satellite-bold-duotone: Observaciones
+- square-academic-cap-bold-duotone: Aprendamos
+
+Adaptación: atributos SVG convertidos a JSX. Tamaño y color heredados de la interfaz.
+No se modificaron los trazados originales. No se implica respaldo del autor.
