@@ -5,7 +5,7 @@ import json
 import logging
 from pathlib import Path
 
-from hardware_runtime import ResourceMonitor, profile_stage
+from .hardware_runtime import ResourceMonitor, profile_stage
 
 from .benchmark import compare_cpu_modes, write_benchmark
 from .cleaning import clean_firms_csv, clean_npz_directory

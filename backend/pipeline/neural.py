@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from hardware_runtime import RuntimeConfig, adaptive_batch
+from .hardware_runtime import RuntimeConfig, adaptive_batch
 
 
 def train_autoencoder(

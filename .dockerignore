@@ -29,8 +29,11 @@ Thumbs.db
 schema.yml
 
 Dockerfile
+deployment/dev.Dockerfile
 docker-compose.yml
 .dockerignore
 node_modules/
+frontend/node_modules/
 dist/
+frontend/dist/
 data/interim/external/

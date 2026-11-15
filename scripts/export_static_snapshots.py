@@ -7,10 +7,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+BACKEND_ROOT = ROOT / "backend"
+for path_entry in (BACKEND_ROOT, ROOT):
+    if str(path_entry) not in sys.path:
+        sys.path.insert(0, str(path_entry))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "nasa_api.settings")
+os.environ.setdefault("PIPELINE_DATA_ROOT", str(ROOT))
 
 import pandas as pd
 
@@ -18,7 +21,7 @@ from nasa_api.services.catalog import load_spatial_catalog, model_metrics_summar
 
 
 def main() -> None:
-    out_dir = ROOT / "public" / "data-snapshots"
+    out_dir = ROOT / "frontend" / "public" / "data-snapshots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_spatial_catalog()

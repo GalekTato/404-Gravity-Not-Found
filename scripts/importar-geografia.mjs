@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const output = fileURLToPath(new URL('../public/geojson/', import.meta.url))
+const output = fileURLToPath(new URL('../frontend/public/geojson/', import.meta.url))
 const cache = join(tmpdir(), 'front404-inegi')
 const base = 'https://gaia.inegi.org.mx/wscatgeo/v2/geo/'
 await mkdir(cache, { recursive: true })

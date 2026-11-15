@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
-const base = new URL('../public/geojson/', import.meta.url)
+const base = new URL('../frontend/public/geojson/', import.meta.url)
 const json = async nombre => JSON.parse(await readFile(new URL(nombre, base), 'utf8'))
 const procedencia = await json('procedencia.json')
 const catalogo = await json('catalogo.json')

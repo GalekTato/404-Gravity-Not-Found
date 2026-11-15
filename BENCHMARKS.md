@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Entorno de Hardware Perfilado (`hardware_runtime.py`)
+## 1. Entorno de Hardware Perfilado (`backend/pipeline/hardware_runtime.py`)
 
 | Recurso | Especificación Medida |
 | :--- | :--- |

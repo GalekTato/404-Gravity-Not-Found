@@ -20,6 +20,7 @@ def _load_env(path):
 
 
 _load_env(os.path.join(BASE_DIR, ".env"))
+_load_env(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 DEBUG = os.environ.get("DEBUG", "False").lower() in {"1", "true", "yes", "on"}
 SECRET_KEY = os.environ.get("SECRET_KEY")

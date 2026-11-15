@@ -1,9 +1,9 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 RUN npm install --global pnpm@10
-COPY package.json pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY . .
+COPY frontend/ ./
 RUN pnpm build
 
 FROM nginx:stable-alpine

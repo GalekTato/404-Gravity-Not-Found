@@ -7,13 +7,13 @@ The application remains local. The deployment profile builds the actual React fr
 3. Start from the repository root:
 
 ```sh
-docker compose --env-file .env.deploy -f compose.deploy.yaml up --build -d --wait
+docker compose --env-file .env.deploy -f deployment/compose.deploy.yaml up --build -d --wait
 ```
 
 Open <http://127.0.0.1:8080>. API requests use the same origin at `/api/`. PostgreSQL and Gunicorn have no host ports. Stop with:
 
 ```sh
-docker compose --env-file .env.deploy -f compose.deploy.yaml down
+docker compose --env-file .env.deploy -f deployment/compose.deploy.yaml down
 ```
 
 This preserves database volumes. To inspect logs, append `logs --tail 100 api web` instead of `down`. Rebuild after application changes. The catalog directory is mounted read-only; replacing its Parquet artifacts requires restarting the API to clear its caches.

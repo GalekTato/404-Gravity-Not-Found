@@ -16,7 +16,7 @@ services:
       retries: 10
   api:
     build:
-      context: .
+      context: ..
       dockerfile: deployment/api.Dockerfile
     restart: unless-stopped
     command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn nasa_api.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120 --access-logfile -"
@@ -32,7 +32,7 @@ services:
       PIPELINE_DATA_ROOT: /pipeline_data
       DRF_ANON_RATE: ${DRF_ANON_RATE:-600/min}
     volumes:
-      - ./data:/pipeline_data/data:ro
+      - ../data:/pipeline_data/data:ro
       - django_static:/app/staticfiles
     depends_on:
       db:
@@ -45,7 +45,7 @@ services:
       start_period: 30s
   web:
     build:
-      context: .
+      context: ..
       dockerfile: deployment/frontend.Dockerfile
     restart: unless-stopped
     ports:

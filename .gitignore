@@ -21,14 +21,8 @@ __pycache__/
 .venv/
 *.sqlite3
 .tmp/
-docs/entrega/*.aux
-docs/entrega/*.out
-docs/entrega/*.toc
-docs/entrega/*.nav
-docs/entrega/*.snm
-docs/entrega/*.log
-docs/entrega/*.fls
-docs/entrega/*.fdb_latexmk
+frontend/node_modules
+frontend/dist
 
 # Editor directories and files
 .vscode/*

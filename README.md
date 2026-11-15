@@ -1,6 +1,6 @@
 <div align="center">
 
-![TerraSync México — Banner animado](docs/assets/terrasync-hero.svg)
+![TerraSync México — Banner animado](.github/assets/terrasync-hero.svg)
 
 <p>
   <img src="https://img.shields.io/badge/React-19-142b3a?style=for-the-badge&logo=react&logoColor=38bdf8" alt="React 19" />
@@ -15,7 +15,7 @@
 **Atlas interactivo de observación terrestre, minería de datos multisensor y sonificación armónica para México.**<br />
 Cobertura de las **32 entidades federativas**, **2,478 municipios** y **216 meses (`2010-01` – `2027-12`)** con **3,502 registros georreferenciados** y **32 predicciones estatales mensuales para todo 2027**.
 
-[Inicio Rápido](#-inicio-rápido) · [Arquitectura](#️-arquitectura-del-sistema) · [Benchmarks](BENCHMARKS.md) · [Despliegue 3 Meses](docs/deployment-3-meses.md) · [Créditos](#-créditos-y-equipo)
+[Inicio Rápido](#-inicio-rápido) · [Arquitectura](#️-arquitectura-del-sistema) · [Benchmarks](BENCHMARKS.md) · [Despliegue](deployment/README.md) · [Créditos](#-créditos-y-equipo)
 
 </div>
 
@@ -24,41 +24,41 @@ Cobertura de las **32 entidades federativas**, **2,478 municipios** y **216 mese
 ## ✨ Características Principales
 
 - **Globo 3D interactivo (`/`)**: Escena **Three.js** optimizada con textura *NASA Blue Marble*, campo de estrellas por *shaders*, órbita ilustrativa NISAR, control táctil/teclado y liberación automática de contexto WebGL al cambiar de pestaña.
-- **Mapa explorador y TimeMap abatible (`/explorar`)**: Cartografía vectorial **MapLibre GL JS** sobre los 32 estados y 2,478 municipios del **INEGI**, línea del tiempo colapsable (`2010-01` – `2027-12`) mediante clics/taps, filtros por entidad federativa y amenaza, exportación `.xlsx` filtrada y mini-tutorial accesible de 4 pasos.
+- **Mapa explorador y TimeMap abatible (`/explorar`)**: Cartografía vectorial **MapLibre GL JS** sobre los 32 estados y 2,478 municipios del **INEGI**, línea del tiempo colapsable (`2010-01` – `2027-12`) mediante clics/taps, filtros por entidad federativa y amenaza, fichas traslúcidas en primer plano con cierre por clic externo, exportación `.xlsx` filtrada y mini-tutorial accesible de 4 pasos.
 - **Sonificación por Círculo de Quintas (`Web Audio API`)**: Convierte la severidad e historial de fenómenos (**sismo, ciclón/inundación, incendio y sequía**) en acordes e intervalos armónicos sobre quintas musicales mientras recorres el TimeMap.
 - **Observaciones y Predicciones 2027 (`/observar`)**: Consulta libre por **Año**, **Mes**, **Estado** y **Amenaza** sobre registros históricos (`observed`), modelos calibrados (`supervised`), indicadores físicos (`proxy`) y proyecciones completas para los **12 meses de 2027** (`32` predicciones estatales por mes).
 - **Aprende (`/learn`)**: Explicaciones claras y visuales sin sobrecarga técnica, procedencia verificada de los sensores, actividad interactiva y selector bilingüe **ES / EN**.
-- **Modo dual Online + Offline (`PWA`)**: Conecta en vivo contra **Django REST + PostgreSQL 16 + Redis 7** y respalda automáticamente con *snapshots* estáticos (`public/data-snapshots/`) para funcionar incluso de forma autónoma en GitHub Pages.
+- **Modo dual Online + Offline (`PWA`)**: Conecta en vivo contra **Django REST + PostgreSQL 16 + Redis 7** y respalda automáticamente con *snapshots* estáticos (`frontend/public/data-snapshots/`) para funcionar incluso de forma autónoma en GitHub Pages.
 
 ---
 
-![Separador animado TerraSync](docs/assets/terrasync-wave.svg)
+![Separador animado TerraSync](.github/assets/terrasync-wave.svg)
 
 ## 🏗️ Arquitectura del Sistema
 
 ```mermaid
 flowchart LR
-  subgraph Client["Frontend · React 19 + TypeScript + Vite 8 PWA"]
+  subgraph Client["Frontend (frontend/) · React 19 + TypeScript + Vite 8 PWA"]
     Globe["Inicio: Three.js 3D Globe + NISAR"]
     Map["Explorar: MapLibre GL + TimeMap Abatible"]
     Obs["Observaciones & Aprende (ES / EN)"]
     Audio["Sintetizador Círculo de Quintas (Web Audio)"]
   end
 
-  subgraph Backend["API & Almacenamiento · Docker Compose"]
+  subgraph Backend["Backend (backend/) · Docker Compose"]
     API["Django REST Framework + Gunicorn"]
     PG[("PostgreSQL 16\nSpatialHazardEvent (3,502)")]
     Redis[("Redis 7 Cache")]
   end
 
-  subgraph Pipeline["Pipeline Científico & ML · Python + PyTorch CUDA"]
+  subgraph Pipeline["Pipeline Científico & ML (backend/pipeline/) · PyTorch CUDA"]
     Ingest["Ingesta 638 archivos (GPM, MODIS, GLDAS, FIRMS, ALOS, NISAR)"]
     ML["Ensamble Calibrado (LR + RF + ExtraTrees)\n+ IsolationForest + Autoencoder PyTorch"]
-    Snap["Snapshots Estáticos JSON\n(public/data-snapshots/)"]
+    Snap["Snapshots Estáticos JSON\n(frontend/public/data-snapshots/)"]
   end
 
   Ingest --> ML
-  ML -->|"Parquet + Métricas"| API
+  ML -->|"Parquet + Métricas (data/processed/)"| API
   ML --> Snap
   API <--> PG
   API <--> Redis
@@ -91,36 +91,41 @@ El reporte completo con tiempos secuenciales vs. paralelos, métricas por modelo
 
 ```text
 404-Gravity-Not-Found/
-├── .github/workflows/       # CI/CD automático hacia GitHub Pages
-├── config/                  # Perfilado dinámico de hardware (CPU/RAM/GPU)
+├── .github/
+│   ├── assets/              # Banners y separadores SVG animados del README
+│   └── workflows/           # CI/CD automático hacia GitHub Pages
+├── backend/
+│   ├── config/              # Perfilado dinámico de hardware (CPU/RAM/GPU)
+│   ├── nasa_api/            # Backend Django REST Framework, PostgreSQL y exportación Excel
+│   ├── pipeline/            # Limpieza SAR, cubos NASA, ensamble ML, backtesting y hardware_runtime
+│   ├── static/              # Recursos estáticos de Django
+│   ├── tests/               # Suite pytest del pipeline científico y backtesting
+│   ├── main.py              # Entrypoint WSGI
+│   ├── manage.py            # Utilidad administrativa de Django
+│   ├── pyproject.toml       # Metadatos y dependencias del pipeline Python
+│   └── requirements.txt     # Dependencias de la API Django
 ├── data/
 │   ├── interim/             # Características estatales mensuales y etiquetas externas
 │   └── processed/           # Catálogos Parquet, modelos entrenados y métricas JSON
-├── deployment/              # Dockerfiles (API/Frontend), Nginx y guía de producción
-├── docs/
-│   ├── assets/              # Banners y separadores SVG animados del repositorio
-│   ├── entrega/             # Documento técnico y presentación en LaTeX / PDF
-│   ├── arquitectura.md      # Decisiones de arquitectura e integración
-│   └── deployment-3-meses.md# Guía gratuita / estudiante para despliegue por 3 meses
-├── nasa_api/                # Backend Django REST Framework, modelos PostgreSQL y Excel
-├── pipeline/                # Limpieza SAR, cubos NASA, ensamble ML y backtesting 80/20
-├── public/
-│   ├── assets/              # Textura Blue Marble y logotipo oficial del equipo
-│   ├── data-snapshots/      # Snapshots JSON para modo autónomo en GitHub Pages
-│   ├── fonts/               # IBM Plex Sans local (licencia OFL)
-│   └── geojson/             # Cartografía INEGI (32 entidades y 2,478 municipios)
-├── scripts/                 # Exportación de snapshots, verificación de stack y geografía
-├── src/
-│   ├── componentes/         # Layout, navegación, barra de idioma y mini-tutorial
-│   ├── configuracion/       # Identidad centralizada del proyecto y rutas
-│   ├── estilos/             # Paleta de 28 colores y tema responsive
-│   ├── funcionalidades/     # Módulos: inicio, explorar, observaciones y aprendamos
-│   └── utils/               # Motor Web Audio API (Círculo de Quintas)
-├── tests/                   # Suite pytest del pipeline científico y backtesting
+├── deployment/
+│   ├── api.Dockerfile       # Imagen de producción Gunicorn/Django
+│   ├── compose.deploy.yaml  # Orquestación de producción (Nginx + API + Postgres + Redis)
+│   ├── dev.Dockerfile       # Imagen de desarrollo local para Django
+│   ├── frontend.Dockerfile  # Build multietapa React/Vite -> Nginx
+│   ├── nginx.conf           # Proxy reverso /api y fallback SPA
+│   └── README.md            # Instrucciones de despliegue Docker
+├── frontend/
+│   ├── public/              # Blue Marble, logo, snapshots JSON, fuentes y GeoJSON INEGI
+│   ├── src/                 # App React 19, MapLibre GL, Three.js y Web Audio (Círculo de Quintas)
+│   ├── index.html           # Entrada HTML
+│   ├── package.json         # Scripts pnpm del frontend
+│   ├── tsconfig*.json       # Configuración TypeScript estricta
+│   └── vite.config.ts       # Configuración Vite 8, proxy API y Workbox PWA
+├── scripts/                 # Exportación de snapshots estáticos, verificación GeoJSON y stack
 ├── BENCHMARKS.md            # Reporte detallado de rendimiento y minería de datos
-├── compose.deploy.yaml      # Orquestación de producción (Nginx + API + Postgres + Redis)
-├── docker-compose.yml       # Orquestación de desarrollo local
-└── vite.config.ts           # Configuración Vite 8, proxy API y Workbox PWA
+├── docker-compose.yml       # Orquestación rápida de desarrollo local (`docker compose up`)
+├── LICENSE                  # Licencia MIT
+└── README.md                # Documentación principal del proyecto
 ```
 
 ---
@@ -132,8 +137,9 @@ El reporte completo con tiempos secuenciales vs. paralelos, métricas por modelo
 Requiere **Docker Desktop**, **Node.js 20.19+ / 22.12+** y **pnpm**:
 
 ```sh
+docker compose up --build -d --wait
+cd frontend
 pnpm install --frozen-lockfile
-pnpm stack:up
 pnpm dev --host 127.0.0.1 --port 5173 --strictPort
 ```
 
@@ -145,26 +151,30 @@ pnpm dev --host 127.0.0.1 --port 5173 --strictPort
 ### 2. Verificación y pruebas
 
 ```sh
+# Frontend (desde frontend/)
 pnpm lint                                    # Oxlint sobre 58 archivos TS/TSX
 pnpm typecheck                               # TypeScript estricto
 pnpm build                                   # Compilación Vite + PWA Workbox
 pnpm datos:verificar                         # Integridad SHA-256 de GeoJSON INEGI
+
+# Backend & Pipeline (desde backend/)
 python -m unittest nasa_api.test_catalog -v  # Pruebas unitarias Django/Excel/API
 python -m pytest tests/ -v                   # Pruebas del pipeline científico y ML
 ```
 
-### 3. Despliegue (3 meses sin costo)
+### 3. Despliegue (3 meses sin costo para estudiantes)
 
-Consulta **[docs/deployment-3-meses.md](docs/deployment-3-meses.md)** y **[deployment/README.md](deployment/README.md)** para publicar en **GitHub Pages + DigitalOcean Student Pack / Render + Neon**.
+- **GitHub Pages (Frontend autónomo con fallback a snapshots estáticos)**: habilitado automáticamente en `.github/workflows/deploy-pages.yml` al hacer push a `main`.
+- **Backend en vivo por 3 meses sin costo**: usa `deployment/compose.deploy.yaml` en un Droplet de DigitalOcean ($200 USD con *GitHub Student Developer Pack*) o `deployment/api.Dockerfile` en Render + Neon PostgreSQL Free Tier, y configura `VITE_API_BASE_URL` en las variables del repositorio. Detalles en [deployment/README.md](deployment/README.md).
 
 ---
 
-![Separador animado TerraSync](docs/assets/terrasync-wave.svg)
+![Separador animado TerraSync](.github/assets/terrasync-wave.svg)
 
 ## 👥 Créditos y Equipo
 
 <div align="center">
-  <img src="public/assets/equipo/logo.jpg" alt="Logotipo del equipo 404 Gravity Not Found" width="128" />
+  <img src="frontend/public/assets/equipo/logo.jpg" alt="Logotipo del equipo 404 Gravity Not Found" width="128" />
   <h3>Equipo 404 Gravity Not Found</h3>
 </div>
 

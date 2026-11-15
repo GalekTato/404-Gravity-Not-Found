@@ -10,7 +10,7 @@ export default defineConfig({
   base: basePath,
   server: {
     watch: {
-      ignored: ['**/.taste-skill/**', '**/data/**', '**/pipeline/**', '**/nasa_api/**', '**/tests/**'],
+      ignored: ['**/.taste-skill/**', '**/data/**', '**/backend/**'],
     },
     proxy: { '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true } },
   },

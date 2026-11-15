@@ -4,8 +4,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from hardware_runtime import RuntimeConfig, configure_reproducibility, load_runtime_config
-
+from .hardware_runtime import RuntimeConfig, configure_reproducibility, load_runtime_config
 from .paths import DataPaths, resolve_data_paths
 
 LOGGER = logging.getLogger(__name__)
@@ -23,7 +22,11 @@ class PipelineConfig:
     @classmethod
     def from_root(cls, root: str | Path = ".") -> "PipelineConfig":
         root = Path(root).resolve()
-        runtime = load_runtime_config(root / "config" / "hardware.yaml")
+        package_root = Path(__file__).resolve().parents[1]
+        yaml_path = package_root / "config" / "hardware.yaml"
+        if not yaml_path.exists():
+            yaml_path = root / "config" / "hardware.yaml"
+        runtime = load_runtime_config(yaml_path)
         configure_reproducibility(runtime)
         config = cls(
             root=root,
