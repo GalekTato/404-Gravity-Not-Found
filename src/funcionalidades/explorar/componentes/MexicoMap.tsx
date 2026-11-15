@@ -6,10 +6,20 @@ import type { SesionMapa } from '../hooks/useMapaMexico'
 import { agregarCapas, ajustarVista, limitesMexico, opacidadEstados } from '../servicios/mapaMexico'
 import { limitesArea } from '../servicios/geografia'
 import { esperarMunicipiosDibujados } from '../servicios/capaMunicipal'
-import type { ColeccionAreas, MapaMexicoProps } from '../tipos/cartografia'
+import { COLORES_DESASTRE, ETIQUETAS_DESASTRE, TIPOS_DESASTRE } from '../servicios/predicciones'
+import type { ColeccionAreas, EstadoPredicciones, MapaMexicoProps } from '../tipos/cartografia'
 import { MexicoBoundary } from './MexicoBoundary'
+import { PredictionMarkers } from './PredictionMarkers'
+
+function textoPredicciones(estado: EstadoPredicciones | undefined, fecha: string | undefined) {
+  if (!estado || estado.estado === 'inactivo') return 'Predicciones simuladas · no son alertas oficiales'
+  if (estado.estado === 'cargando') return 'Consultando predicciones simuladas…'
+  if (estado.estado === 'error') return 'No se pudieron cargar las predicciones.'
+  return `${estado.total} eventos simulados · ${estado.fecha ?? fecha ?? 'fecha consultada'} · no son alertas oficiales`
+}
 
 export function MexicoMap({ ref, geografia, entidad, municipios, municipio, mostrarLimites, mostrarMunicipios,
+  mostrarPredicciones, fechaPrediccion, intentoPredicciones, estadoPredicciones, onEstadoPredicciones,
   onEntidad, onMunicipio, onReadyChange, onEstadoCapaMunicipal }: MapaMexicoProps) {
   const container = useRef<HTMLDivElement>(null)
   const { sesion, estado, mensaje, reintentar, avisoRelieve, reintentarRelieve } = useMapaMexico(container, onReadyChange)
@@ -23,6 +33,9 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     if (!map.getSource('estados')) agregarCapas(map, geografia)
     let hover: string | number | undefined
     function click(event: MapMouseEvent) {
+      // Un clic sobre una predicción abre su detalle; no debe seleccionar el territorio que hay debajo.
+      if (map.getLayer('predicciones-puntos')
+        && map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length) return
       const municipal = map.queryRenderedFeatures(event.point, { layers: ['municipios-relleno', 'municipios-etiquetas'] })[0]
       if (municipal?.properties?.clave) { onMunicipio(String(municipal.properties.clave)); return }
       const estatal = map.queryRenderedFeatures(event.point, { layers: ['estados-relleno', 'estados-etiquetas'] })[0]
@@ -30,10 +43,13 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     }
     function mover(event: MapMouseEvent) {
       const feature = map.queryRenderedFeatures(event.point, { layers: ['estados-relleno'] })[0]
+      const prediccion = map.getLayer('predicciones-puntos')
+        ? map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length > 0
+        : false
       if (hover !== undefined) map.setFeatureState({ source: 'estados', id: hover }, { hover: false })
       hover = feature?.id
       if (hover !== undefined) map.setFeatureState({ source: 'estados', id: hover }, { hover: true })
-      map.getCanvas().style.cursor = feature ? 'pointer' : ''
+      map.getCanvas().style.cursor = feature || prediccion ? 'pointer' : ''
     }
     map.on('click', click)
     map.on('mousemove', mover)
@@ -132,8 +148,20 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
         {estado === 'error' && <button className="button button-primary" onClick={reintentar}>Volver a intentar</button>}
       </div>}
       <MexicoBoundary sesion={sesion} visible={mostrarLimites}/>
+      <PredictionMarkers sesion={sesion} visible={!!mostrarPredicciones} fecha={fechaPrediccion}
+        intento={intentoPredicciones} onEstado={onEstadoPredicciones}/>
       {avisoRelieve && <div className="map-base-notice" role="status"><p>{avisoRelieve}</p><button onClick={reintentarRelieve}>Reintentar relieve</button></div>}
-      <div className="map-legend" aria-label="Leyenda"><span className="legend-state"/> Estados <span className="legend-municipal"/> Municipios de la entidad seleccionada</div>
+      <div className="map-legend" aria-label="Leyenda del mapa">
+        <span className="legend-row"><span className="legend-state"/> Estados <span className="legend-municipal"/> Municipios de la entidad seleccionada</span>
+        {mostrarPredicciones && <>
+          <span className="legend-row legend-prediction-types">
+            {TIPOS_DESASTRE.map(tipo => <span key={tipo} className="legend-item">
+              <span className="legend-dot" style={{ backgroundColor: COLORES_DESASTRE[tipo] }}/>{ETIQUETAS_DESASTRE[tipo]}
+            </span>)}
+          </span>
+          <span className="legend-caption">{textoPredicciones(estadoPredicciones, fechaPrediccion)}</span>
+        </>}
+      </div>
     </div>
   )
 }

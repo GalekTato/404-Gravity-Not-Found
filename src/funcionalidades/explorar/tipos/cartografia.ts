@@ -13,6 +13,11 @@ export interface Entidad extends PropiedadesArea {
 export interface GeografiaMexico { estados: ColeccionAreas; catalogo: readonly Entidad[] }
 export type EstadoCarga = 'cargando' | 'listo' | 'error'
 export interface EstadoCapaMunicipal { clave?: string; estado: EstadoCarga; mensaje?: string }
+export type EstadoPredicciones =
+  | { estado: 'inactivo' }
+  | { estado: 'cargando' }
+  | { estado: 'listo'; total: number; fecha?: string }
+  | { estado: 'error'; mensaje: string }
 export interface MapaHandle { zoom: (delta: number) => void; restablecer: () => void }
 export interface MapaMexicoProps {
   ref?: Ref<MapaHandle>
@@ -22,6 +27,11 @@ export interface MapaMexicoProps {
   municipio?: string
   mostrarLimites: boolean
   mostrarMunicipios: boolean
+  mostrarPredicciones?: boolean
+  fechaPrediccion?: string
+  intentoPredicciones?: number
+  estadoPredicciones?: EstadoPredicciones
+  onEstadoPredicciones?: (estado: EstadoPredicciones) => void
   onEntidad: (clave: string) => void
   onMunicipio: (clave: string) => void
   onReadyChange: (ready: boolean) => void

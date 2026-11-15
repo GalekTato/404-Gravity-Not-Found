@@ -4,7 +4,17 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// En desarrollo el frontend llama a /api y Vite lo reenvía al backend Django.
+const proxyApi = {
+  '/api': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+  },
+}
+
 export default defineConfig({
+  server: { proxy: proxyApi },
+  preview: { proxy: proxyApi },
   plugins: [
     react(),
     tailwindcss(),

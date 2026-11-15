@@ -65,3 +65,27 @@
 @media(max-width:1100px){.home-space .space-hero{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);min-height:650px;padding-top:10px}.space-experience{height:560px}.space-interaction-hint{font-size:6px;letter-spacing:1px}.space-hero .hero-copy h1{font-size:36px}}
 @media(max-width:760px){.home-space .space-hero{grid-template-columns:1fr;padding:38px 6% 60px;min-height:0;gap:8px}.space-hero .hero-copy h1{font-size:clamp(35px,7.4vw,53px)}.space-experience{height:490px;margin-top:10px}.space-interaction-hint{top:15px;font-size:6px;letter-spacing:1px}.space-controls{bottom:62px;gap:6px}.space-disclaimer{font-size:7px;bottom:11px}.satellite-label{font-size:8px;padding:6px 8px;letter-spacing:1px}.satellite-label small{font-size:5px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;scroll-behavior:auto!important}}
+.explorer-tools .map-layer-toggles{align-items:center}
+.prediction-date{display:flex;align-items:center;gap:7px;font-size:10px;color:#8daca6;white-space:nowrap}
+.prediction-date input{min-height:30px;padding:3px 7px;background:#0b151e;color:#e0eae8;border:1px solid #36504f;border-radius:5px;font-size:10px;color-scheme:dark}
+.prediction-date input:disabled{opacity:.5}
+.prediction-status{font-size:9px;color:#a2e8cc;white-space:nowrap}
+.prediction-retry{padding:0;background:none;border:0;color:#f0b8a0;font-size:9px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.prediction-retry:hover{color:#ffd2bf}
+.map-legend{flex-direction:column;align-items:flex-start;gap:6px}
+.legend-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.5}
+.legend-prediction-types{gap:4px 9px}
+.legend-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px #ffffff2b}
+.legend-caption{font-size:8px;letter-spacing:.2px;color:#7e9490;line-height:1.5}
+.explorer-fullscreen .legend-caption{color:#6b6a52}
+.explorer-fullscreen.con-predicciones .map-legend{right:76px}
+.explorer-fullscreen .maplibregl-popup-content{background:#0b1821f5;color:#e1eee8;border:1px solid #30454d;border-radius:8px;padding:12px 14px;box-shadow:0 10px 30px #0008}
+.explorer-fullscreen .maplibregl-popup-tip{border-top-color:#0b1821f5}
+.explorer-fullscreen .maplibregl-popup-close-button{color:#9fb7b1;font-size:18px;padding:2px 6px}
+.explorer-fullscreen .maplibregl-popup-close-button:hover{background:#1b3035;color:#d3ebdf}
+.prediccion-popup-contenido{max-width:250px}
+.prediccion-popup-tipo{margin:0 0 5px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;line-height:1.4}
+.prediccion-popup-nombre{margin:0 0 5px;font-size:12px;font-weight:600;color:#e1eee8;line-height:1.45}
+.prediccion-popup-detalle{margin:0;font-size:10px;color:#8fa6a2;line-height:1.5}
+@media(max-width:760px){.explorer-tools{align-items:flex-start}.explorer-tools .map-layer-toggles{gap:9px}.explorer-fullscreen.con-predicciones .explorer-panel{top:156px;max-height:calc(100% - 356px - env(safe-area-inset-bottom,0px))}.prediction-date{margin-left:auto}.territory-toggle{white-space:nowrap}}

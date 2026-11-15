@@ -26,6 +26,12 @@ Los archivos del INEGI se sirven desde `public/geojson`, sin consultas externas 
 
 La copia contiene 32 entidades y 2,478 municipios/demarcaciones del Marco Geoestadístico de diciembre de 2025. Son áreas geoestadísticas, no límites político-administrativos con valor legal. Las fuentes, transformaciones y condiciones están en `public/geojson/README.md` y `procedencia.json`. La cartografía ocupa unos 113 MB sin compresión; el archivo nacional unos 24 MB. La carga municipal por entidad evita transferir el conjunto completo. Para publicación futura se recomienda compresión HTTP y evaluar teselas vectoriales a mayor escala.
 
+## Predicciones del backend
+
+`servicios/predicciones.ts` consume `GET /api/predictions/?date=YYYY-MM-DD` y valida que la respuesta sea un `FeatureCollection` de puntos con tipo, severidad, radio y fecha. `PredictionMarkers` crea la fuente `predicciones-source` y las capas `predicciones-halo`/`predicciones-puntos` solo cuando el mapa está listo; actualiza la fuente al cambiar de fecha y alterna su visibilidad sin recrear el motor. Los colores y etiquetas por tipo se comparten con la leyenda del mapa. Cada clic abre un popup con el detalle y no selecciona el estado que queda debajo.
+
+El estado de la consulta (`inactivo`, `cargando`, `listo` o `error`) se levanta a `ExplorarPage` mediante `onEstadoPredicciones`. La barra del mapa muestra la fecha, el estado de carga y un reintento; si el backend no responde, los límites locales y el relieve siguen operativos. Vite reenvía `/api` a `http://127.0.0.1:8000` en desarrollo; `VITE_API_PREDICCIONES` permite apuntar a otro endpoint. Los eventos son simulados y no son alertas oficiales.
+
 ## PWA y entorno
 
 Se conserva vite-plugin-pwa y el manifiesto. El shell y los bundles se precachean; los GeoJSON se excluyen de la descarga masiva y se cachean bajo demanda con NetworkFirst, 40 entradas y 30 días. El uso sin conexión requiere visitas previas a los datos correspondientes. Las cachés antiguas de Cesium ya no se usan. El desarrollo actual se realiza en localhost y no se publica en Sites.
