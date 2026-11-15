@@ -30,7 +30,7 @@ La copia contiene 32 entidades y 2,478 municipios/demarcaciones del Marco Geoest
 
 `servicios/predicciones.ts` consume `GET /api/predictions/?date=YYYY-MM-DD` y valida que la respuesta sea un `FeatureCollection` de puntos con tipo, severidad, radio y fecha. `PredictionMarkers` crea la fuente `predicciones-source` y las capas `predicciones-halo`/`predicciones-puntos` solo cuando el mapa está listo; actualiza la fuente al cambiar de fecha y alterna su visibilidad sin recrear el motor. Los colores y etiquetas por tipo se comparten con la leyenda del mapa. Cada clic abre un popup con el detalle y no selecciona el estado que queda debajo.
 
-El estado de la consulta (`inactivo`, `cargando`, `listo` o `error`) se levanta a `ExplorarPage` mediante `onEstadoPredicciones`. La barra del mapa muestra la fecha, el estado de carga y un reintento; si el backend no responde, los límites locales y el relieve siguen operativos. Vite reenvía `/api` a `http://127.0.0.1:8000` en desarrollo; `VITE_API_PREDICCIONES` permite apuntar a otro endpoint. Los eventos son simulados y no son alertas oficiales.
+El estado de la consulta (`inactivo`, `cargando`, `listo` o `error`) se levanta a `ExplorarPage` mediante `onEstadoPredicciones`. La barra del mapa muestra la fecha, el estado de carga y un reintento; si el backend no responde, los límites locales y el relieve siguen operativos. Vite reenvía `/api` a `http://127.0.0.1:8000` en desarrollo; `VITE_API_PREDICCIONES` permite apuntar a otro endpoint. Los eventos proceden del catálogo científico agregado, pueden ser observados o proxy y no son alertas oficiales.
 
 ## PWA y entorno
 

@@ -88,15 +88,15 @@ La vista inicial encuadra México con margen y la navegación se limita a una ca
 
 Fuente del fondo: [WMS de terrestris](https://terrestris.de/en/products/free-osm-wms/) y [cartografía topográfica de mundialis](https://www.mundialis.de/en/software/web-map-services-wms/). Los créditos permanecen visibles. El servicio público no tiene disponibilidad garantizada: si falla, se informa sin bloquear las divisiones locales y se ofrece reintento. No se precargan ni se almacenan masivamente teselas de ese proveedor; se respeta la caché HTTP del navegador. Los GeoJSON del INEGI y las fuentes de las etiquetas siguen siendo locales.
 
-El futuro catálogo científico de regiones sigue pendiente; RegionMarkers está preparado para MapLibre sin inventar regiones. Las fechas de Observaciones se editan sin consultas. SAR y metadatos muestran estados vacíos. Aprendamos presenta temas en preparación. El explorador se conecta al backend de predicciones, que genera eventos simulados; no hay autenticación, observaciones ni resultados NISAR inventados.
+El catálogo científico de regiones sigue pendiente; RegionMarkers está preparado para MapLibre sin inventar regiones. Las fechas de Observaciones se editan sin consultas. SAR y metadatos muestran estados vacíos. Aprendamos presenta temas en preparación. El explorador se conecta al backend de indicadores científicos; no hay autenticación, observaciones ni resultados NISAR inventados.
 
-## Predicciones conectadas al backend
+## Indicadores científicos conectados al backend
 
 El explorador consume `GET /api/predictions/?date=YYYY-MM-DD` del proyecto `backend_nasa` (Django REST Framework). La respuesta es un `FeatureCollection` GeoJSON con puntos, tipo de amenaza, severidad, radio estimado y fecha. El frontend valida ese contrato antes de dibujarlo, colorea por tipo, dimensiona por severidad y muestra el detalle al hacer clic en un punto.
 
 En desarrollo, Vite reenvía `/api` a `http://127.0.0.1:8000` mediante `server.proxy` (ver `vite.config.ts`), así que no hace falta configurar CORS ni cambiar la URL del frontend. Para usar otro origen, define `VITE_API_PREDICCIONES` con la URL completa del endpoint al iniciar Vite. La fecha se cambia desde la barra del mapa y, por defecto, se consulta el día siguiente. Si el backend falla, la barra informa el problema y permite reintentar sin ocultar los límites locales.
 
-Las predicciones son una simulación determinista generada por el backend a partir de la fecha. No son alertas oficiales, no provienen de NISAR y no sustituyen a Protección Civil.
+Los indicadores del mapa provienen del catálogo científico agregado generado por el pipeline. Cada evento expone una etiqueta de evidencia (`observed`, `proxy`, `supervised` o `no_confirmable`). Los indicadores proxy no son alertas oficiales ni sustituyen a Protección Civil; la actividad tectónica no se confirma sin pares SAR temporales o un catálogo sísmico.
 
 ## Datos geográficos
 
@@ -124,3 +124,7 @@ MapLibre 6 requiere su worker como recurso separado. `mapaMexico.ts` lo importa 
 El trabajo actual se sirve en localhost con `pnpm dev --host 127.0.0.1`. No se publica automáticamente en Sites. Para una publicación futura, servir `dist/` como SPA con fallback a `index.html`. Se conserva `.openai/hosting.json` como configuración histórica; no es necesario para localhost.
 
 [NASA Eyes](https://eyes.nasa.gov/apps/earth/) es inspiración visual. No se reutiliza su código, identidad ni recursos.
+
+## Integración del pipeline geoespacial
+
+El backend científico y los artefactos generados por el pipeline local se integrarán en esta aplicación mediante endpoints de catálogo, indicadores y estado de procesamiento.

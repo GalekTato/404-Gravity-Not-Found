@@ -1,0 +1,8 @@
+{
+  "external_wildfires_used": true,
+  "local_firms_files": 6,
+  "positive_months": 81,
+  "rows": 139,
+  "sha256": "4ce242f95f808e92436c26d6947684f702726369db5d9eeae742f0f0d04aa8c9",
+  "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires"
+}

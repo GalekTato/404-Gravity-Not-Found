@@ -71,6 +71,10 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
   const severity = typeof props.severity === 'number' ? props.severity : Number(props.severity)
   const radius = typeof props.radius_km === 'number' ? props.radius_km : Number(props.radius_km)
   if (!Number.isFinite(severity) || !Number.isFinite(radius) || radius <= 0) return undefined
+  const evidence = props.evidence
+  const score = props.score
+  const month = props.month
+  const source = props.source
   return {
     id: String(props.id ?? ''),
     name: String(props.name ?? 'Evento sin nombre'),
@@ -78,6 +82,11 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
     severity,
     radius_km: radius,
     date: String(props.date ?? ''),
+    ...(typeof evidence === 'string' ? { evidence: evidence as PropiedadesDesastre['evidence'] } : {}),
+    ...(typeof score === 'number' || score === null ? { score } : {}),
+    ...(typeof props.observed === 'boolean' ? { observed: props.observed } : {}),
+    ...(typeof month === 'string' ? { month } : {}),
+    ...(typeof source === 'string' ? { source } : {}),
   }
 }
 
@@ -93,8 +102,12 @@ function contenidoPopup(props: PropiedadesDesastre): HTMLDivElement {
   nombre.textContent = props.name
   const detalle = document.createElement('p')
   detalle.className = 'prediccion-popup-detalle'
-  detalle.textContent = `Radio estimado: ${props.radius_km} km · Fecha: ${props.date}`
-  contenedor.append(tipo, nombre, detalle)
+  detalle.textContent = `Radio de cobertura: ${props.radius_km} km · Fecha: ${props.date}`
+  const evidencia = document.createElement('p')
+  evidencia.className = 'prediccion-popup-detalle'
+  const etiqueta = props.evidence ?? 'no_confirmable'
+  evidencia.textContent = `Evidencia: ${etiqueta}${props.score === null || props.score === undefined ? '' : ` · Score: ${props.score}`}`
+  contenedor.append(tipo, nombre, detalle, evidencia)
   return contenedor
 }
 

@@ -26,6 +26,11 @@ export interface PropiedadesDesastre {
   severity: number
   radius_km: number
   date: string
+  month?: string
+  score?: number | null
+  evidence?: 'observed' | 'supervised' | 'proxy' | 'no_confirmable'
+  observed?: boolean
+  source?: string
 }
 
 export interface MetadatosPredicciones {
@@ -64,6 +69,7 @@ function propiedades(value: unknown): value is PropiedadesDesastre {
     && typeof value.severity === 'number' && Number.isFinite(value.severity) && value.severity >= 0 && value.severity <= 10
     && typeof value.radius_km === 'number' && Number.isFinite(value.radius_km) && value.radius_km > 0
     && typeof value.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date)
+    && (value.evidence === undefined || ['observed', 'supervised', 'proxy', 'no_confirmable'].includes(value.evidence as string))
 }
 
 function metadatos(value: unknown): MetadatosPredicciones | undefined {

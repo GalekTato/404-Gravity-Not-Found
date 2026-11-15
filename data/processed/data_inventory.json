@@ -1,0 +1,398 @@
+{
+  "groups": {
+    "alos": {
+      "resolved_path": "D:\\Hack\\alos_mexico_reducido\\content\\hackaton_alos\\datos_reducidos",
+      "available": true,
+      "count": 15,
+      "total_bytes": 24328073,
+      "samples": [
+        {
+          "path": "D:\\Hack\\alos_mexico_reducido\\content\\hackaton_alos\\datos_reducidos\\ALPSRP279070450_2011-04-21_alos_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                772,
+                434
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                772,
+                434
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                434
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                772
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "int64"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            },
+            "fecha": {
+              "shape": [],
+              "dtype": "<U10"
+            }
+          }
+        },
+        {
+          "path": "D:\\Hack\\alos_mexico_reducido\\content\\hackaton_alos\\datos_reducidos\\ALPSRP279070460_2011-04-21_alos_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                774,
+                441
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                774,
+                441
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                441
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                774
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "int64"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            },
+            "fecha": {
+              "shape": [],
+              "dtype": "<U10"
+            }
+          }
+        },
+        {
+          "path": "D:\\Hack\\alos_mexico_reducido\\content\\hackaton_alos\\datos_reducidos\\ALPSRP279070470_2011-04-21_alos_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                774,
+                442
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                774,
+                442
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                442
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                774
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "int64"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            },
+            "fecha": {
+              "shape": [],
+              "dtype": "<U10"
+            }
+          }
+        }
+      ]
+    },
+    "nisar": {
+      "resolved_path": "D:\\Hack\\nisar_mexico_reducido\\content\\hackaton_nisar\\datos_reducidos",
+      "available": true,
+      "count": 15,
+      "total_bytes": 554637297,
+      "samples": [
+        {
+          "path": "D:\\Hack\\nisar_mexico_reducido\\content\\hackaton_nisar\\datos_reducidos\\NISAR_L2_PR_GCOV_035_019_A_011_4005_DHDH_A_20261106T120539_20261106T120613_P05036_N_F_J_001_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                3348,
+                3413
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                3348,
+                3413
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                3413
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                3348
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "uint32"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            }
+          }
+        },
+        {
+          "path": "D:\\Hack\\nisar_mexico_reducido\\content\\hackaton_nisar\\datos_reducidos\\NISAR_L2_PR_GCOV_035_019_A_012_4005_DHDH_A_20261106T120612_20261106T120647_P05036_N_F_J_001_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                3356,
+                3413
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                3356,
+                3413
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                3413
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                3356
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "uint32"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            }
+          }
+        },
+        {
+          "path": "D:\\Hack\\nisar_mexico_reducido\\content\\hackaton_nisar\\datos_reducidos\\NISAR_L2_PR_GCOV_035_019_A_013_4005_DHDH_A_20261106T120646_20261106T120720_P05036_N_F_J_001_reducido.npz",
+          "format": "npz",
+          "arrays": {
+            "co_pol": {
+              "shape": [
+                3356,
+                3420
+              ],
+              "dtype": "float32"
+            },
+            "cross_pol": {
+              "shape": [
+                3356,
+                3420
+              ],
+              "dtype": "float32"
+            },
+            "x": {
+              "shape": [
+                3420
+              ],
+              "dtype": "float64"
+            },
+            "y": {
+              "shape": [
+                3356
+              ],
+              "dtype": "float64"
+            },
+            "epsg": {
+              "shape": [],
+              "dtype": "uint32"
+            },
+            "pol_tipo": {
+              "shape": [],
+              "dtype": "<U5"
+            }
+          }
+        }
+      ]
+    },
+    "firms": {
+      "resolved_path": "D:\\Hack\\Hack\\Datos\\datos_firms_incendios",
+      "available": true,
+      "count": 6,
+      "total_bytes": 24997397,
+      "samples": [
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_firms_incendios\\J2_VIIRS_C2_Global_VJ214IMGTDL_NRT_2026313.txt",
+          "format": "csv",
+          "columns": [
+            "latitude",
+            "longitude",
+            "bright_ti4",
+            "scan",
+            "track",
+            "acq_date",
+            "acq_time",
+            "satellite",
+            "confidence",
+            "version",
+            "bright_ti5",
+            "frp",
+            "daynight"
+          ]
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_firms_incendios\\J2_VIIRS_C2_Global_VJ214IMGTDL_NRT_2026314.txt",
+          "format": "csv",
+          "columns": [
+            "latitude",
+            "longitude",
+            "bright_ti4",
+            "scan",
+            "track",
+            "acq_date",
+            "acq_time",
+            "satellite",
+            "confidence",
+            "version",
+            "bright_ti5",
+            "frp",
+            "daynight"
+          ]
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_firms_incendios\\J2_VIIRS_C2_Global_VJ214IMGTDL_NRT_2026315.txt",
+          "format": "csv",
+          "columns": [
+            "latitude",
+            "longitude",
+            "bright_ti4",
+            "scan",
+            "track",
+            "acq_date",
+            "acq_time",
+            "satellite",
+            "confidence",
+            "version",
+            "bright_ti5",
+            "frp",
+            "daynight"
+          ]
+        }
+      ]
+    },
+    "gpm": {
+      "resolved_path": "D:\\Hack\\Hack\\Datos\\datos_gpm_mexico",
+      "available": true,
+      "count": 197,
+      "total_bytes": 3610268034,
+      "samples": [
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gpm_mexico\\3B-MO.MS.MRG.3IMERG.20100101-S000000-E235959.01.V07B.HDF5",
+          "format": ".hdf5"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gpm_mexico\\3B-MO.MS.MRG.3IMERG.20100201-S000000-E235959.02.V07B.HDF5",
+          "format": ".hdf5"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gpm_mexico\\3B-MO.MS.MRG.3IMERG.20100301-S000000-E235959.03.V07B.HDF5",
+          "format": ".hdf5"
+        }
+      ]
+    },
+    "modis": {
+      "resolved_path": "D:\\Hack\\Hack\\Datos\\datos_modis_temperatura",
+      "available": true,
+      "count": 206,
+      "total_bytes": 14961736209,
+      "samples": [
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_modis_temperatura\\MOD11C3.A2010001.061.2021156012829.hdf",
+          "format": ".hdf"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_modis_temperatura\\MOD11C3.A2010032.061.2021157114208.hdf",
+          "format": ".hdf"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_modis_temperatura\\MOD11C3.A2010060.061.2021162122648.hdf",
+          "format": ".hdf"
+        }
+      ]
+    },
+    "gldas": {
+      "resolved_path": "D:\\Hack\\Hack\\Datos\\datos_gldas_mexico",
+      "available": true,
+      "count": 199,
+      "total_bytes": 4986942063,
+      "samples": [
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gldas_mexico\\GLDAS_NOAH025_M.A201001.021.nc4",
+          "format": ".nc4"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gldas_mexico\\GLDAS_NOAH025_M.A201002.021.nc4",
+          "format": ".nc4"
+        },
+        {
+          "path": "D:\\Hack\\Hack\\Datos\\datos_gldas_mexico\\GLDAS_NOAH025_M.A201003.021.nc4",
+          "format": ".nc4"
+        }
+      ]
+    }
+  },
+  "warnings": []
+}

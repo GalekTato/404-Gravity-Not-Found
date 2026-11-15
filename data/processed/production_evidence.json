@@ -1,0 +1,97 @@
+{
+  "pipeline_run": {
+    "status": "passed",
+    "stages": [
+      "cleaning",
+      "features",
+      "scientific_aggregation",
+      "training",
+      "inference"
+    ]
+  },
+  "hardware": {
+    "cpu_count": 16,
+    "workers": 14,
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "cuda": true,
+    "torch": "2.11.0+cu128"
+  },
+  "data_usage": {
+    "alos_files": 15,
+    "nisar_files": 15,
+    "firms_files": 6,
+    "gpm_files": 197,
+    "modis_files": 206,
+    "gldas_files": 199,
+    "layout": "Direct ALOS/NISAR roots plus Hack/Datos scientific archive",
+    "inventory_artifact": "data/processed/data_inventory.json",
+    "inventory_warnings": 0
+  },
+  "benchmarks": {
+    "cleaning_sequential_seconds": 0.0307056,
+    "cleaning_parallel_seconds": 3.9708527,
+    "gpm_streaming_seconds": 0.1394487,
+    "gpm_dask_seconds": 0.0125005,
+    "neural_cpu_seconds": 1.396,
+    "neural_gpu_seconds": 5.45
+  },
+  "ground_truth": {
+    "usgs_earthquakes": "acquired (2010-2026, M>=4.0, complete monthly series)",
+    "firms_fire_observations": "acquired (local FIRMS + NASA EONET v3 Historical Wildfires, 139 months)",
+    "ibtracs_cyclones": "acquired (NOAA IBTrACS v04r01 North Atlantic filtered to Mexico)",
+    "gpm_gldas": "available as indicators, not independent labels",
+    "drought": "unavailable as independent label",
+    "flood": "evaluated against NOAA IBTrACS v04r01 tropical cyclone tracks in Mexico"
+  },
+  "backtesting": {
+    "status": "passed_with_explicit_skips",
+    "evaluated_hazards": [
+      {
+        "hazard_type": "incendio",
+        "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires",
+        "train_months": 100,
+        "test_months": 25,
+        "positive_test_months": 23,
+        "threshold": 1.651421729945867,
+        "precision": 0.6666666666666666,
+        "recall": 0.08695652173913043,
+        "f1": 0.15384615384615385,
+        "brier_score": 0.4388188088713138
+      },
+      {
+        "hazard_type": "inundacion",
+        "source": "NOAA IBTrACS v04r01 (tropical cyclone tracks in Mexico)",
+        "train_months": 151,
+        "test_months": 38,
+        "positive_test_months": 11,
+        "threshold": 1.9580402729234443,
+        "precision": 0.5,
+        "recall": 0.36363636363636365,
+        "f1": 0.42105263157894735,
+        "brier_score": 0.3149328564435883
+      }
+    ],
+    "skipped_hazards": [
+      {
+        "hazard_type": "sequia",
+        "reason": "No independent ground-truth labels are available for hazard 'sequia'."
+      },
+      {
+        "hazard_type": "sismo",
+        "reason": "Catalog has zero finite values for 'tectonic_score_proxy' (insufficient sensor/SAR temporal pairs)."
+      }
+    ]
+  },
+  "deployment": {
+    "windows_checks": "passed",
+    "docker_version": "Docker version 29.9.3, build 5457199",
+    "docker_compose_version": "Docker Compose version v5.7.0",
+    "docker_checks": "passed (config, build, PostgreSQL migrations, Redis healthcheck, /api/catalog/status/ and /api/predictions/ smoke tests)"
+  },
+  "notes": [
+    "Adaptive policy uses sequential cleaning for small ALOS input and parallel cleaning only when the configured file/size thresholds are met.",
+    "Parallel cleaning is slower for the small 15-tile benchmark dataset.",
+    "GPU is slower for the tiny neural smoke workload; larger workloads require a representative benchmark.",
+    "Tectonic score remains non-evaluable because local ALOS (2011-04) and NISAR (2026-11) tiles lack co-registered temporal pairs."
+  ]
+}

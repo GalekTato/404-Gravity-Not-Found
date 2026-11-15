@@ -11,11 +11,11 @@ import type { ColeccionAreas, EstadoPredicciones, MapaMexicoProps } from '../tip
 import { MexicoBoundary } from './MexicoBoundary'
 import { PredictionMarkers } from './PredictionMarkers'
 
-function textoPredicciones(estado: EstadoPredicciones | undefined, fecha: string | undefined) {
-  if (!estado || estado.estado === 'inactivo') return 'Predicciones simuladas · no son alertas oficiales'
-  if (estado.estado === 'cargando') return 'Consultando predicciones simuladas…'
-  if (estado.estado === 'error') return 'No se pudieron cargar las predicciones.'
-  return `${estado.total} eventos simulados · ${estado.fecha ?? fecha ?? 'fecha consultada'} · no son alertas oficiales`
+function predictionStatusText(state: EstadoPredicciones | undefined, date: string | undefined) {
+  if (!state || state.estado === 'inactivo') return 'Indicadores científicos · no son alertas oficiales'
+  if (state.estado === 'cargando') return 'Consultando indicadores científicos…'
+  if (state.estado === 'error') return 'No se pudieron cargar los indicadores.'
+  return `${state.total} indicadores · ${state.fecha ?? date ?? 'fecha consultada'} · no son alertas oficiales`
 }
 
 export function MexicoMap({ ref, geografia, entidad, municipios, municipio, mostrarLimites, mostrarMunicipios,
@@ -33,7 +33,7 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     if (!map.getSource('estados')) agregarCapas(map, geografia)
     let hover: string | number | undefined
     function click(event: MapMouseEvent) {
-      // Un clic sobre una predicción abre su detalle; no debe seleccionar el territorio que hay debajo.
+      // A marker click opens its detail and must not select the territory below it.
       if (map.getLayer('predicciones-puntos')
         && map.queryRenderedFeatures(event.point, { layers: ['predicciones-puntos'] }).length) return
       const municipal = map.queryRenderedFeatures(event.point, { layers: ['municipios-relleno', 'municipios-etiquetas'] })[0]
@@ -72,7 +72,7 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
     const controller = new AbortController()
     const clave = entidad?.clave
     onEstadoCapaMunicipal({ clave, estado: municipios ? 'cargando' : 'listo' })
-    // MapLibre 6 actualiza el worker de forma asíncrona. No superponer escrituras ni seleccionar datos anteriores.
+    // MapLibre 6 updates the worker asynchronously. Serialize writes and reject stale data.
     if (colaMunicipios.current.sesion !== sesion) colaMunicipios.current = { sesion, tarea: Promise.resolve() }
     const tarea = colaMunicipios.current.tarea.catch(() => {}).then(async () => {
       if (!vigente || !sesion.activa) return
@@ -109,7 +109,7 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
   useEffect(() => {
     if (!sesion?.activa) return
     for (const layer of ['municipios-relleno', 'municipios-linea', 'municipios-etiquetas']) {
-      // Mantener activa la fuente permite preparar sus teselas. El filtro impide mostrar otra entidad.
+      // Keep the source active while tiles are prepared; the filter hides other entities.
       sesion.map.setFilter(layer, ['==', ['get', 'entidad'], entidad?.clave ?? ''])
       sesion.map.setLayoutProperty(layer, 'visibility', mostrarMunicipios && !!municipios ? 'visible' : 'none')
     }
@@ -159,7 +159,7 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
               <span className="legend-dot" style={{ backgroundColor: COLORES_DESASTRE[tipo] }}/>{ETIQUETAS_DESASTRE[tipo]}
             </span>)}
           </span>
-          <span className="legend-caption">{textoPredicciones(estadoPredicciones, fechaPrediccion)}</span>
+          <span className="legend-caption">{predictionStatusText(estadoPredicciones, fechaPrediccion)}</span>
         </>}
       </div>
     </div>

@@ -1,4 +1,4 @@
-# Logs
+# Frontend
 logs
 *.log
 npm-debug.log*
@@ -6,19 +6,39 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
 node_modules
 dist
 dist-ssr
 *.local
-
-# Editor directories and files
-.vscode/*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+# Environments
+dev/
+venv/
+env/
+.venv/
+# Django
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+# Environment/secrets
+.env
+.env.local
+# Editor/system
+.vscode/
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+# drf-spectacular
+schema.yml

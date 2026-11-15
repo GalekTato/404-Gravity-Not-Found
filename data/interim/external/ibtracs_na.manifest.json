@@ -1,0 +1,7 @@
+{
+  "coverage": "North Atlantic basin storm tracks; filtered to Mexico in normalization",
+  "retrieved_at": "2026-11-15T08:25:31.146283+00:00",
+  "sha256": "666681be5b12caf5bad7a511bae5f6e5fa8b03789f7f6dd00ee2f0aaa41c2c97",
+  "source": "NOAA IBTrACS v04r01 North Atlantic",
+  "url": "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.NA.list.v04r01.csv"
+}
