@@ -103,25 +103,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'nasa_api.wsgi.application'
 
-database_host = os.environ.get("DATABASE_HOST")
-if database_host:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("DATABASE_NAME", "nasa_db"),
-            "USER": os.environ.get("DATABASE_USER", "postgres"),
-            "PASSWORD": os.environ.get("DATABASE_PASSWORD", ""),
-            "HOST": database_host,
-            "PORT": os.environ.get("DATABASE_PORT", "5432"),
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DATABASE_NAME", "nasa_db"),
+        "USER": os.environ.get("DATABASE_USER", "nasa"),
+        "PASSWORD": os.environ.get("DATABASE_PASSWORD", "local-docker-smoke-db-pass"),
+        "HOST": os.environ.get("DATABASE_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("DATABASE_PORT", "5432"),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
-        }
-    }
+}
 
 CACHES = {
     "default": {

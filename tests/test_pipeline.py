@@ -138,3 +138,16 @@ def test_parallel_policy_avoids_small_process_pools(tmp_path: Path):
     files[0].write_bytes(b"small")
     assert select_workers(files, 14, minimum_files=8, minimum_bytes=1) == 1
     assert select_training_jobs(10, 14) == 1
+
+
+def test_spatial_catalog_covers_all_32_states():
+    import pandas as pd
+
+    root = Path(__file__).resolve().parents[1]
+    catalog_path = root / "data" / "processed" / "spatial_hazard_catalog.parquet"
+    if not catalog_path.exists():
+        return
+    df = pd.read_parquet(catalog_path)
+    assert len(df) > 1000
+    assert df["state_clave"].nunique() == 32
+    assert set(df["hazard_type"].unique()) == {"sismo", "huracan", "sequia", "inundacion", "incendio"}

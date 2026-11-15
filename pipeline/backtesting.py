@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import brier_score_loss, f1_score, precision_score, recall_score
+from sklearn.metrics import brier_score_loss, f1_score, precision_score, recall_score, roc_auc_score
 
 
 SCORE_COLUMNS = {
@@ -14,6 +14,24 @@ SCORE_COLUMNS = {
     "inundacion": "flood_score_proxy",
     "sismo": "tectonic_score_proxy",
 }
+
+
+def _optimal_train_threshold(scores: pd.Series, labels: pd.Series) -> float:
+    """Learn the classification threshold strictly on the training split to maximize F1."""
+    y_train = labels.astype(bool).to_numpy()
+    s_train = scores.to_numpy(dtype=float)
+    if len(np.unique(y_train)) < 2:
+        return float(scores.quantile(0.8))
+    best_threshold = float(scores.quantile(0.8))
+    best_f1 = -1.0
+    for q in np.linspace(0.10, 0.88, 40):
+        candidate = float(np.quantile(s_train, q))
+        pred = s_train >= candidate
+        score = float(f1_score(y_train, pred, zero_division=0))
+        if score > best_f1:
+            best_f1 = score
+            best_threshold = candidate
+    return best_threshold
 
 
 def backtest_catalog(
@@ -114,10 +132,15 @@ def backtest_catalog(
                 }
             )
             continue
-        threshold = float(train[score_column].quantile(0.8))
+        threshold = _optimal_train_threshold(train[score_column], train["observed"])
         predicted = test[score_column] >= threshold
         actual = test["observed"].astype(bool)
         normalized_score = 1.0 / (1.0 + np.exp(-test[score_column].clip(-20, 20)))
+        roc_auc = (
+            float(roc_auc_score(actual, normalized_score))
+            if len(np.unique(actual)) >= 2
+            else None
+        )
         results.append(
             {
                 "hazard_type": hazard_type,
@@ -129,6 +152,7 @@ def backtest_catalog(
                 "precision": float(precision_score(actual, predicted, zero_division=0)),
                 "recall": float(recall_score(actual, predicted, zero_division=0)),
                 "f1": float(f1_score(actual, predicted, zero_division=0)),
+                "roc_auc": roc_auc,
                 "brier_score": float(brier_score_loss(actual, normalized_score)),
             }
         )

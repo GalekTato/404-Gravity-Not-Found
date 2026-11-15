@@ -1,27 +1,29 @@
 {
   "results": [
     {
-      "brier_score": 0.4388188088713138,
-      "f1": 0.15384615384615385,
+      "brier_score": 0.23434374478811115,
+      "f1": 0.5,
       "hazard_type": "incendio",
-      "positive_test_months": 23,
-      "precision": 0.6666666666666666,
-      "recall": 0.08695652173913043,
+      "positive_test_months": 9,
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "roc_auc": 0.8571428571428572,
       "source": "NASA FIRMS local observations + NASA EONET v3 Historical Wildfires",
-      "test_months": 25,
-      "threshold": 1.651421729945867,
-      "train_months": 100
+      "test_months": 23,
+      "threshold": -0.42730808342277704,
+      "train_months": 92
     },
     {
-      "brier_score": 0.3149328564435883,
-      "f1": 0.42105263157894735,
+      "brier_score": 0.05178596040866432,
+      "f1": 0.975609756097561,
       "hazard_type": "inundacion",
-      "positive_test_months": 11,
-      "precision": 0.5,
-      "recall": 0.36363636363636365,
-      "source": "NOAA IBTrACS v04r01 (tropical cyclone tracks in Mexico)",
+      "positive_test_months": 20,
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "roc_auc": 0.9944444444444445,
+      "source": "NOAA IBTrACS v04r01 (NA + EP tropical cyclone tracks in Mexico)",
       "test_months": 38,
-      "threshold": 1.9580402729234443,
+      "threshold": 0.16723544968050746,
       "train_months": 151
     }
   ],

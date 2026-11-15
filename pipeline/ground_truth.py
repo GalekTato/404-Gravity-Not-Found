@@ -19,6 +19,10 @@ IBTRACS_ENDPOINT = (
     "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/"
     "v04r01/access/csv/ibtracs.NA.list.v04r01.csv"
 )
+IBTRACS_EP_ENDPOINT = (
+    "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/"
+    "v04r01/access/csv/ibtracs.EP.list.v04r01.csv"
+)
 EONET_ENDPOINT = "https://eonet.gsfc.nasa.gov/api/v3/events"
 
 
@@ -178,11 +182,20 @@ def download_ibtracs(
 
 
 def normalize_ibtracs_labels(source: str | Path, output: str | Path) -> Path:
-    """Normalize IBTrACS storm positions intersecting the Mexico bounding box."""
+    """Normalize IBTrACS storm positions (NA and optional EP basin) intersecting Mexico."""
     source, output = Path(source), Path(output)
-    frame = pd.read_csv(source, skiprows=[1], low_memory=False)
-    frame["lat"] = pd.to_numeric(frame.get("USA_LAT"), errors="coerce")
-    frame["lon"] = pd.to_numeric(frame.get("USA_LON"), errors="coerce")
+    sources = [source]
+    ep_candidate = source.parent / "ibtracs_ep.csv"
+    if ep_candidate.exists() and ep_candidate != source:
+        sources.append(ep_candidate)
+    frames = [pd.read_csv(path, skiprows=[1], low_memory=False) for path in sources]
+    frame = pd.concat(frames, ignore_index=True)
+    frame["lat"] = pd.to_numeric(frame.get("USA_LAT"), errors="coerce").fillna(
+        pd.to_numeric(frame.get("LAT"), errors="coerce")
+    )
+    frame["lon"] = pd.to_numeric(frame.get("USA_LON"), errors="coerce").fillna(
+        pd.to_numeric(frame.get("LON"), errors="coerce")
+    )
     frame["timestamp"] = pd.to_datetime(frame.get("ISO_TIME"), errors="coerce", utc=True)
     frame = frame[
         frame["lat"].between(MEXICO_BBOX["lat_min"], MEXICO_BBOX["lat_max"])
@@ -197,12 +210,12 @@ def normalize_ibtracs_labels(source: str | Path, output: str | Path) -> Path:
     cyclone_series = _complete_monthly_series(
         positive,
         hazard_type="ciclon",
-        source_name="NOAA IBTrACS v04r01",
+        source_name="NOAA IBTrACS v04r01 (NA + EP basins)",
     )
     flood_series = _complete_monthly_series(
         positive,
         hazard_type="inundacion",
-        source_name="NOAA IBTrACS v04r01 (tropical cyclone tracks in Mexico)",
+        source_name="NOAA IBTrACS v04r01 (NA + EP tropical cyclone tracks in Mexico)",
     )
     labels = pd.concat([cyclone_series, flood_series], ignore_index=True)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -259,16 +272,19 @@ def download_eonet_wildfires(
     return output
 
 
-def _extract_eonet_wildfire_months(eonet_path: Path) -> list[str]:
+def _extract_eonet_wildfire_months(eonet_path: Path, states_geojson: Path | None = None) -> list[str]:
     if not eonet_path.exists():
         return []
     payload: dict[str, Any] = json.loads(eonet_path.read_text(encoding="utf-8"))
-    months: list[str] = []
+    records: list[tuple[float, float, str]] = []
     for event in payload.get("events", []):
         for geom in event.get("geometry", []):
             coords = geom.get("coordinates")
             date_str = geom.get("date")
             if not date_str:
+                continue
+            parsed = pd.to_datetime(date_str, errors="coerce", utc=True)
+            if pd.isna(parsed):
                 continue
             if isinstance(coords, list) and len(coords) >= 2 and isinstance(coords[0], (int, float)):
                 lon, lat = float(coords[0]), float(coords[1])
@@ -277,10 +293,19 @@ def _extract_eonet_wildfire_months(eonet_path: Path) -> list[str]:
                     and MEXICO_BBOX["lon_min"] <= lon <= MEXICO_BBOX["lon_max"]
                 ):
                     continue
-            parsed = pd.to_datetime(date_str, errors="coerce", utc=True)
-            if pd.notna(parsed):
-                months.append(parsed.strftime("%Y-%m"))
-    return months
+                records.append((lon, lat, parsed.strftime("%Y-%m")))
+    if not records:
+        return []
+    candidate_geojson = states_geojson or (eonet_path.parent.parent / "mexico_states.geojson")
+    if candidate_geojson.exists():
+        import numpy as np
+        from .spatial import assign_states
+
+        lons = np.array([r[0] for r in records], dtype=np.float64)
+        lats = np.array([r[1] for r in records], dtype=np.float64)
+        assigned = assign_states(str(candidate_geojson), lons, lats, max_distance_degrees=0.15)
+        return [records[i][2] for i in range(len(records)) if assigned[i] >= 0]
+    return [r[2] for r in records]
 
 
 def normalize_firms_labels(

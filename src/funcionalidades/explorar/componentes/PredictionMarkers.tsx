@@ -7,7 +7,7 @@ import {
   esTipoDesastre,
   obtenerPredicciones,
 } from '../servicios/predicciones'
-import type { PropiedadesDesastre } from '../servicios/predicciones'
+import type { PropiedadesDesastre, TipoDesastre } from '../servicios/predicciones'
 import type { EstadoPredicciones } from '../tipos/cartografia'
 
 const FUENTE = 'predicciones-source'
@@ -73,8 +73,11 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
   if (!Number.isFinite(severity) || !Number.isFinite(radius) || radius <= 0) return undefined
   const evidence = props.evidence
   const score = props.score
+  const probability = props.probability
   const month = props.month
   const source = props.source
+  const stateName = props.state_name
+  const stateClave = props.state_clave
   return {
     id: String(props.id ?? ''),
     name: String(props.name ?? 'Evento sin nombre'),
@@ -84,9 +87,12 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
     date: String(props.date ?? ''),
     ...(typeof evidence === 'string' ? { evidence: evidence as PropiedadesDesastre['evidence'] } : {}),
     ...(typeof score === 'number' || score === null ? { score } : {}),
+    ...(typeof probability === 'number' || probability === null ? { probability } : {}),
     ...(typeof props.observed === 'boolean' ? { observed: props.observed } : {}),
     ...(typeof month === 'string' ? { month } : {}),
     ...(typeof source === 'string' ? { source } : {}),
+    ...(typeof stateName === 'string' ? { state_name: stateName } : {}),
+    ...(typeof stateClave === 'string' ? { state_clave: stateClave } : {}),
   }
 }
 
@@ -96,7 +102,8 @@ function contenidoPopup(props: PropiedadesDesastre): HTMLDivElement {
   const tipo = document.createElement('p')
   tipo.className = 'prediccion-popup-tipo'
   tipo.style.color = COLORES_DESASTRE[props.type]
-  tipo.textContent = `${ETIQUETAS_DESASTRE[props.type]} · Severidad ${props.severity.toFixed(1)}/10`
+  const estadoTexto = props.state_name ? ` · ${props.state_name}` : ''
+  tipo.textContent = `${ETIQUETAS_DESASTRE[props.type]} · Severidad ${props.severity.toFixed(1)}/10${estadoTexto}`
   const nombre = document.createElement('p')
   nombre.className = 'prediccion-popup-nombre'
   nombre.textContent = props.name
@@ -106,8 +113,16 @@ function contenidoPopup(props: PropiedadesDesastre): HTMLDivElement {
   const evidencia = document.createElement('p')
   evidencia.className = 'prediccion-popup-detalle'
   const etiqueta = props.evidence ?? 'no_confirmable'
-  evidencia.textContent = `Evidencia: ${etiqueta}${props.score === null || props.score === undefined ? '' : ` · Score: ${props.score}`}`
+  const probTexto = typeof props.probability === 'number' ? ` · Prob: ${(props.probability * 100).toFixed(0)}%` : ''
+  const scoreTexto = props.score === null || props.score === undefined ? '' : ` · Score: ${props.score}`
+  evidencia.textContent = `Evidencia: ${etiqueta}${probTexto}${scoreTexto}`
   contenedor.append(tipo, nombre, detalle, evidencia)
+  if (props.source) {
+    const fuente = document.createElement('p')
+    fuente.className = 'prediccion-popup-detalle'
+    fuente.textContent = `Fuente: ${props.source}`
+    contenedor.append(fuente)
+  }
   return contenedor
 }
 
@@ -115,12 +130,14 @@ export function PredictionMarkers({
   sesion,
   visible,
   fecha,
+  tipo,
   intento = 0,
   onEstado,
 }: {
   sesion?: SesionMapa
   visible: boolean
   fecha?: string
+  tipo?: TipoDesastre
   intento?: number
   onEstado?: (estado: EstadoPredicciones) => void
 }) {
@@ -147,7 +164,7 @@ export function PredictionMarkers({
 
       onEstado?.({ estado: 'cargando' })
       try {
-        const datos = await obtenerPredicciones(fecha, controller.signal)
+        const datos = await obtenerPredicciones(fecha, controller.signal, tipo)
         if (controller.signal.aborted || !mapaSesion.activa) return
 
         asegurarCapas(map)
@@ -161,7 +178,7 @@ export function PredictionMarkers({
         onEstado?.({
           estado: 'listo',
           total: datos.metadata?.count ?? datos.features.length,
-          fecha: datos.metadata?.date ?? fecha,
+          fecha: datos.metadata?.period ?? datos.metadata?.date ?? fecha,
         })
       } catch (error) {
         if (controller.signal.aborted || !mapaSesion.activa) return
@@ -196,7 +213,7 @@ export function PredictionMarkers({
       map.off('click', onClick)
       cerrarPopup()
     }
-  }, [sesion, visible, fecha, intento, onEstado])
+  }, [sesion, visible, fecha, tipo, intento, onEstado])
 
   return null
 }

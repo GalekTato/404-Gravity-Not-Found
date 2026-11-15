@@ -1,16 +1,12 @@
 import { lazy, Suspense, useCallback, useRef, useState } from 'react'
 import { GlobeControls } from '../componentes/GlobeControls'
 import { RegionInfoPanel } from '../componentes/RegionInfoPanel'
+import { TimeMapBar } from '../componentes/TimeMapBar'
 import { useGeografia, useMunicipios } from '../hooks/useGeografia'
+import type { TipoDesastre } from '../servicios/predicciones'
 import type { EstadoCapaMunicipal, EstadoPredicciones, MapaHandle } from '../tipos/cartografia'
 
 const MexicoMap = lazy(() => import('../componentes/MexicoMap').then(module => ({ default: module.MexicoMap })))
-
-function fechaEnDias(dias: number) {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() + dias)
-  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
-}
 
 export function ExplorarPage() {
   const { datos, error, reintentar } = useGeografia()
@@ -21,7 +17,8 @@ export function ExplorarPage() {
   const [mostrarLimites, setMostrarLimites] = useState(true)
   const [mostrarMunicipios, setMostrarMunicipios] = useState(true)
   const [mostrarPredicciones, setMostrarPredicciones] = useState(true)
-  const [fechaPrediccion, setFechaPrediccion] = useState(() => fechaEnDias(1))
+  const [fechaPrediccion, setFechaPrediccion] = useState('2026-11')
+  const [tipoPrediccion, setTipoPrediccion] = useState<TipoDesastre>()
   const [estadoPredicciones, setEstadoPredicciones] = useState<EstadoPredicciones>({ estado: 'inactivo' })
   const [intentoPredicciones, setIntentoPredicciones] = useState(0)
   const [panelAbierto, setPanelAbierto] = useState(false)
@@ -47,6 +44,7 @@ export function ExplorarPage() {
             municipio={claveMunicipio} onEntidad={seleccionarEntidad} onMunicipio={seleccionarMunicipio}
             mostrarLimites={mostrarLimites} mostrarMunicipios={mostrarMunicipios}
             mostrarPredicciones={mostrarPredicciones} fechaPrediccion={fechaPrediccion}
+            tipoPrediccion={tipoPrediccion}
             intentoPredicciones={intentoPredicciones} estadoPredicciones={estadoPredicciones}
             onEstadoPredicciones={setEstadoPredicciones}
             onReadyChange={setDisponible}
@@ -65,11 +63,7 @@ export function ExplorarPage() {
           <div className="map-layer-toggles">
             <label className="toggle-label"><input type="checkbox" checked={mostrarLimites} onChange={e => setMostrarLimites(e.target.checked)}/> Estados</label>
             <label className="toggle-label"><input type="checkbox" checked={mostrarMunicipios} onChange={e => setMostrarMunicipios(e.target.checked)}/> Municipios</label>
-            <label className="toggle-label"><input type="checkbox" checked={mostrarPredicciones} onChange={e => setMostrarPredicciones(e.target.checked)}/> Predicciones</label>
-            {mostrarPredicciones && <label className="prediction-date">Fecha
-              <input type="date" value={fechaPrediccion} aria-label="Fecha de las predicciones"
-                onChange={e => { if (e.target.value) setFechaPrediccion(e.target.value) }}/>
-            </label>}
+            <label className="toggle-label"><input type="checkbox" checked={mostrarPredicciones} onChange={e => setMostrarPredicciones(e.target.checked)}/> TimeMap</label>
             {mostrarPredicciones && estadoPredicciones.estado === 'cargando'
               && <span className="prediction-status" role="status">Consultando…</span>}
             {mostrarPredicciones && estadoPredicciones.estado === 'error'
@@ -79,6 +73,14 @@ export function ExplorarPage() {
           </div>
         </div>
       </header>
+      {mostrarPredicciones && (
+        <TimeMapBar
+          periodo={fechaPrediccion}
+          tipoFiltro={tipoPrediccion}
+          onChangePeriodo={setFechaPrediccion}
+          onChangeTipoFiltro={setTipoPrediccion}
+        />
+      )}
       <div id="panel-territorio" className="explorer-panel" hidden={!panelAbierto}>
         <RegionInfoPanel catalogo={datos?.catalogo ?? []} entidad={entidad} municipios={municipales.datos}
           municipio={municipio} cargando={municipales.cargando || dibujandoMunicipios} dibujando={dibujandoMunicipios}

@@ -27,7 +27,10 @@ export interface PropiedadesDesastre {
   radius_km: number
   date: string
   month?: string
+  state_clave?: string
+  state_name?: string
   score?: number | null
+  probability?: number | null
   evidence?: 'observed' | 'supervised' | 'proxy' | 'no_confirmable'
   observed?: boolean
   source?: string
@@ -35,9 +38,32 @@ export interface PropiedadesDesastre {
 
 export interface MetadatosPredicciones {
   date: string
+  period?: string
   count: number
+  states_affected?: number
   region: string
   projection: string
+}
+
+export interface MarcaTimeMap {
+  period: string
+  date: string
+  total: number
+  states_affected: number
+  max_severity: number
+  dominant_type: TipoDesastre
+  headline: string
+  observed_count: number
+  counts: Partial<Record<TipoDesastre, number>>
+}
+
+export interface ResumenTimeMap {
+  start_period: string | null
+  end_period: string | null
+  total_periods: number
+  total_events: number
+  states_covered: number
+  markers: MarcaTimeMap[]
 }
 
 export type ColeccionPredicciones = FeatureCollection<Point, PropiedadesDesastre> & {
@@ -46,6 +72,8 @@ export type ColeccionPredicciones = FeatureCollection<Point, PropiedadesDesastre
 
 const URL_PREDICCIONES = (import.meta.env.VITE_API_PREDICCIONES as string | undefined) ?? '/api/predictions/'
 const API_PREDICCIONES = URL_PREDICCIONES.endsWith('/') ? URL_PREDICCIONES : `${URL_PREDICCIONES}/`
+const URL_TIMEMAP = (import.meta.env.VITE_API_TIMEMAP as string | undefined) ?? '/api/timemap/'
+const API_TIMEMAP = URL_TIMEMAP.endsWith('/') ? URL_TIMEMAP : `${URL_TIMEMAP}/`
 
 function objeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null
@@ -74,10 +102,17 @@ function propiedades(value: unknown): value is PropiedadesDesastre {
 
 function metadatos(value: unknown): MetadatosPredicciones | undefined {
   if (!objeto(value)) return undefined
-  const { date, count, region, projection } = value
+  const { date, period, count, states_affected, region, projection } = value
   if (typeof date !== 'string' || typeof count !== 'number' || !Number.isFinite(count)
     || typeof region !== 'string' || typeof projection !== 'string') return undefined
-  return { date, count, region, projection }
+  return {
+    date,
+    count,
+    region,
+    projection,
+    ...(typeof period === 'string' ? { period } : {}),
+    ...(typeof states_affected === 'number' && Number.isFinite(states_affected) ? { states_affected } : {}),
+  }
 }
 
 export function validarPredicciones(value: unknown): ColeccionPredicciones {
@@ -97,8 +132,23 @@ export function validarPredicciones(value: unknown): ColeccionPredicciones {
   }
 }
 
-export async function obtenerPredicciones(fecha?: string, signal?: AbortSignal): Promise<ColeccionPredicciones> {
-  const url = fecha ? `${API_PREDICCIONES}?date=${encodeURIComponent(fecha)}` : API_PREDICCIONES
+export async function obtenerPredicciones(
+  fechaOPeriodo?: string,
+  signal?: AbortSignal,
+  tipo?: TipoDesastre,
+): Promise<ColeccionPredicciones> {
+  const params: string[] = []
+  if (fechaOPeriodo) {
+    if (/^\d{4}-\d{2}$/.test(fechaOPeriodo)) {
+      params.push(`period=${encodeURIComponent(fechaOPeriodo)}`)
+    } else {
+      params.push(`date=${encodeURIComponent(fechaOPeriodo)}`)
+    }
+  }
+  if (tipo) {
+    params.push(`type=${encodeURIComponent(tipo)}`)
+  }
+  const url = params.length > 0 ? `${API_PREDICCIONES}?${params.join('&')}` : API_PREDICCIONES
   let respuesta: Response
   try {
     respuesta = await fetch(url, { signal, headers: { Accept: 'application/json' } })
@@ -117,4 +167,26 @@ export async function obtenerPredicciones(fecha?: string, signal?: AbortSignal):
     throw new Error('El servicio de predicciones devolvió una respuesta ilegible.')
   }
   return validarPredicciones(datos)
+}
+
+export async function obtenerTimeMap(
+  tipo?: TipoDesastre,
+  signal?: AbortSignal,
+): Promise<ResumenTimeMap> {
+  const url = tipo ? `${API_TIMEMAP}?type=${encodeURIComponent(tipo)}` : API_TIMEMAP
+  let respuesta: Response
+  try {
+    respuesta = await fetch(url, { signal, headers: { Accept: 'application/json' } })
+  } catch (error) {
+    if (signal?.aborted) throw error
+    throw new Error('No se pudo conectar con el servicio TimeMap.')
+  }
+  if (!respuesta.ok) {
+    throw new Error(`El servicio TimeMap respondió con un error ${respuesta.status}.`)
+  }
+  const datos = (await respuesta.json()) as unknown
+  if (!objeto(datos) || !Array.isArray(datos.markers)) {
+    throw new Error('El servicio TimeMap devolvió una línea de tiempo inválida.')
+  }
+  return datos as unknown as ResumenTimeMap
 }

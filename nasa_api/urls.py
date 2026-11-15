@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 
 from nasa_api.views.bootstrap import VersionView
 from nasa_api.views.auth import CustomAuthToken, Logout
-from nasa_api.views.Prediction import CatalogStatusView, DisastersGeoJSONView
+from nasa_api.views.Prediction import CatalogStatusView, DisastersGeoJSONView, TimeMapView
 
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -21,9 +21,10 @@ urlpatterns = [
     path('api/login/', CustomAuthToken.as_view(), name='api-login'),
     path('api/logout/', Logout.as_view(), name='api-logout'),
 
-    # Hazard indicators and GeoJSON points
+    # Hazard indicators, TimeMap timeline, and GeoJSON points
     path('api/disasters/', DisastersGeoJSONView.as_view(), name='disasters-geojson'),
     path('api/predictions/', DisastersGeoJSONView.as_view(), name='predictions-geojson'),
+    path('api/timemap/', TimeMapView.as_view(), name='timemap-timeline'),
     path('api/catalog/status/', CatalogStatusView.as_view(), name='catalog-status'),
 
     # Swagger and OpenAPI documentation

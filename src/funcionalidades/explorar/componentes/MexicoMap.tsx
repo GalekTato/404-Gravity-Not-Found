@@ -19,7 +19,7 @@ function predictionStatusText(state: EstadoPredicciones | undefined, date: strin
 }
 
 export function MexicoMap({ ref, geografia, entidad, municipios, municipio, mostrarLimites, mostrarMunicipios,
-  mostrarPredicciones, fechaPrediccion, intentoPredicciones, estadoPredicciones, onEstadoPredicciones,
+  mostrarPredicciones, fechaPrediccion, tipoPrediccion, intentoPredicciones, estadoPredicciones, onEstadoPredicciones,
   onEntidad, onMunicipio, onReadyChange, onEstadoCapaMunicipal }: MapaMexicoProps) {
   const container = useRef<HTMLDivElement>(null)
   const { sesion, estado, mensaje, reintentar, avisoRelieve, reintentarRelieve } = useMapaMexico(container, onReadyChange)
@@ -149,7 +149,7 @@ export function MexicoMap({ ref, geografia, entidad, municipios, municipio, most
       </div>}
       <MexicoBoundary sesion={sesion} visible={mostrarLimites}/>
       <PredictionMarkers sesion={sesion} visible={!!mostrarPredicciones} fecha={fechaPrediccion}
-        intento={intentoPredicciones} onEstado={onEstadoPredicciones}/>
+        tipo={tipoPrediccion} intento={intentoPredicciones} onEstado={onEstadoPredicciones}/>
       {avisoRelieve && <div className="map-base-notice" role="status"><p>{avisoRelieve}</p><button onClick={reintentarRelieve}>Reintentar relieve</button></div>}
       <div className="map-legend" aria-label="Leyenda del mapa">
         <span className="legend-row"><span className="legend-state"/> Estados <span className="legend-municipal"/> Municipios de la entidad seleccionada</span>

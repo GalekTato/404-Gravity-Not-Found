@@ -42,3 +42,7 @@ Thumbs.db
 *.swo
 # drf-spectacular
 schema.yml
+# Large raw external downloads (normalized .parquet and .manifest.json are tracked)
+data/interim/external/*.csv
+data/interim/external/*.geojson
+data/interim/external/eonet_wildfires.json

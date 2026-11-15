@@ -31,3 +31,6 @@ schema.yml
 Dockerfile
 docker-compose.yml
 .dockerignore
+node_modules/
+dist/
+data/interim/external/

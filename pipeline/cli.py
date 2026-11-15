@@ -21,11 +21,12 @@ from .ground_truth import (
     normalize_usgs_labels,
 )
 from .lazy_benchmark import benchmark_gpm_backends
-from .hazards import build_hazard_catalog
+from .hazards import build_hazard_catalog, build_spatial_hazard_catalog
 from .inventory import build_inventory
 from .models import infer_anomalies, train_anomaly_model
 from .paths import resolve_data_paths
 from .scientific import aggregate_all_data
+from .spatial import aggregate_state_features
 
 LOGGER = logging.getLogger("pipeline")
 
@@ -87,6 +88,13 @@ def run(config: PipelineConfig) -> None:
             )
         with profile_stage("scientific_aggregation"):
             monthly = aggregate_all_data(config.root, config.interim_root / "mexico_monthly_features.parquet")
+            state_monthly = aggregate_state_features(
+                config.root,
+                config.interim_root / "mexico_state_monthly_features.parquet",
+                workers=runtime.workers,
+                minimum_files=runtime.parallel_min_files,
+                minimum_bytes=runtime.parallel_min_bytes,
+            )
             build_hazard_catalog(
                 monthly,
                 config.output_root / "hazard_catalog.parquet",
@@ -94,6 +102,11 @@ def run(config: PipelineConfig) -> None:
                     config.interim_root / "alos_features.parquet",
                     config.interim_root / "nisar_features.parquet",
                 ),
+            )
+            build_spatial_hazard_catalog(
+                config.root,
+                state_monthly,
+                config.output_root / "spatial_hazard_catalog.parquet",
             )
         model = config.output_root / "isolation_forest.joblib"
         with profile_stage("training"):
