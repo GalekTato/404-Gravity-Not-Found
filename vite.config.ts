@@ -13,7 +13,12 @@ const proxyApi = {
 }
 
 export default defineConfig({
-  server: { proxy: proxyApi },
+  server: {
+    proxy: proxyApi,
+    watch: {
+      ignored: ['**/data/**', '**/pipeline/**', '**/nasa_api/**', '**/tests/**'],
+    },
+  },
   preview: { proxy: proxyApi },
   plugins: [
     react(),
