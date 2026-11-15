@@ -80,7 +80,7 @@ export function MainLayout() {
         )}
         {!mapaCompleto && <Outlet />}
       </main>
-      {!mapaCompleto && (
+      {pathname === '/' && (
         <footer className="project-footer" aria-label={t('Créditos del equipo', 'Team credits')}>
           <div className="footer-brand-col">
             <strong>{proyecto.nombre}</strong> · <span>{proyecto.equipo}</span>

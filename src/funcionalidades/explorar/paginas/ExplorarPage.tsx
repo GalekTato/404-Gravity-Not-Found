@@ -13,7 +13,6 @@ import { useGeografia, useMunicipios } from '../hooks/useGeografia'
 import { useFiltrosCatalogo } from '../hooks/useFiltrosCatalogo'
 import { exportarExcel } from '../servicios/exportar'
 import type { EstadoCapaMunicipal, EstadoPredicciones, MapaHandle } from '../tipos/cartografia'
-import { playQuintasEasterEgg } from '../../../utils/disasterSound'
 
 const MexicoMap = lazy(() => import('../componentes/MexicoMap').then(module => ({ default: module.MexicoMap })))
 
@@ -42,7 +41,6 @@ export function ExplorarPage({ activa = true }: { activa?: boolean }) {
   const [estadoCapaMunicipal, setEstadoCapaMunicipal] = useState<EstadoCapaMunicipal>()
   const [exportando, setExportando] = useState(false)
   const [errorExportacion, setErrorExportacion] = useState(false)
-  const [easterToast, setEasterToast] = useState(false)
 
   const entidad = datos?.catalogo.find(item => item.clave === claveEntidad)
   const municipales = useMunicipios(entidad?.clave)
@@ -82,12 +80,6 @@ export function ExplorarPage({ activa = true }: { activa?: boolean }) {
     setExportando(true); setErrorExportacion(false)
     try { await exportarExcel(fechaPrediccion, tipoPrediccion, claveEntidad) } catch { setErrorExportacion(true) } finally { setExportando(false) }
   }
-  function activarEasterEgg() {
-    playQuintasEasterEgg()
-    setEasterToast(true)
-    window.setTimeout(() => setEasterToast(false), 2600)
-    window.open(proyecto.github, '_blank', 'noopener,noreferrer')
-  }
 
   return <section className="explorer-workspace" aria-label={t('Explorador de México', 'Mexico explorer')}>
     <header className="map-liquid-toolbar" onPointerMove={reflejo}>
@@ -122,18 +114,6 @@ export function ExplorarPage({ activa = true }: { activa?: boolean }) {
       <span>{entidad?.nombre ?? t('Todo México', 'All Mexico')} · {estadoPredicciones.estado === 'listo' ? `${estadoPredicciones.total} ${t(estadoPredicciones.total === 1 ? 'registro' : 'registros', estadoPredicciones.total === 1 ? 'record' : 'records')}` : estadoPredicciones.estado === 'error' ? t('Error de conexión', 'Connection error') : t('Consultando…', 'Loading…')}
         {estadoPredicciones.estado === 'error' && <button onClick={() => setIntentoPredicciones(value => value + 1)}>{t('Reintentar', 'Retry')}</button>}
       </span>
-      <span className="map-status-team">
-        {t('Equipo:', 'Team:')} {proyecto.integrantes.join(' · ')}
-        <button
-          type="button"
-          className="easter-egg-trigger"
-          onClick={activarEasterEgg}
-          title={t('Anomalía orbital 404 — Abrir repositorio en GitHub', 'Orbital anomaly 404 — Open GitHub repository')}
-        >
-          🛰️ 404-GNF ↗
-        </button>
-      </span>
-      {easterToast && <span role="status" className="easter-egg-toast">{t('Telemetría orbital 404 desbloqueada → GitHub', 'Orbital telemetry 404 unlocked → GitHub')}</span>}
       <span>{t('Indicadores, no alertas oficiales', 'Indicators, not official alerts')}</span>
       {!datos && <span role={error ? 'alert' : 'status'}>{error ? <button onClick={reintentar}>{t('Reintentar cartografía', 'Retry boundaries')}</button> : t('Cargando cartografía…', 'Loading boundaries…')}</span>}
       {errorExportacion && <span role="alert">{t('No se pudo exportar. Reintenta.', 'Export failed. Please retry.')}</span>}

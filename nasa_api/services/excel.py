@@ -57,7 +57,7 @@ def export_workbook(features):
         archive.writestr(
             "xl/workbook.xml",
             f'<workbook xmlns="{NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            '<sheets><sheet name="EarthSync" sheetId="1" r:id="rId1"/></sheets></workbook>',
+            '<sheets><sheet name="TerraSync" sheetId="1" r:id="rId1"/></sheets></workbook>',
         )
         archive.writestr(
             "xl/_rels/workbook.xml.rels",

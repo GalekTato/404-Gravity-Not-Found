@@ -60,40 +60,40 @@ const perfiles: Record<TipoDesastre, PerfilSonoro> = {
     wave: 'sawtooth',
     bassWave: 'triangle',
     degrees: [0, null, 2, 1, null, 3, 1, null, 2, 4, null, 1, 3, null, 2, 0],
-    gain: 0.11,
-    filter: 900,
+    gain: 0.31,
+    filter: 980,
   },
   huracan: {
     bpm: 84,
     wave: 'triangle',
     bassWave: 'sine',
     degrees: [0, null, null, 2, null, 1, null, null, 3, null, 2, null, null, 1, null, 0],
-    gain: 0.09,
-    filter: 1250,
+    gain: 0.33,
+    filter: 1350,
   },
   sequia: {
     bpm: 72,
     wave: 'sine',
     bassWave: 'sine',
     degrees: [0, null, null, null, 2, null, null, 1, null, null, 3, null, null, null, 1, null],
-    gain: 0.1,
-    filter: 1600,
+    gain: 0.34,
+    filter: 1650,
   },
   inundacion: {
     bpm: 96,
     wave: 'triangle',
     bassWave: 'sine',
     degrees: [0, null, 2, null, 1, 3, null, 2, 4, null, 2, 1, null, 3, null, 0],
-    gain: 0.09,
-    filter: 1800,
+    gain: 0.32,
+    filter: 1850,
   },
   incendio: {
     bpm: 132,
     wave: 'square',
     bassWave: 'sawtooth',
     degrees: [0, 1, 3, null, 2, 4, 3, 1, null, 4, 2, 3, 1, null, 2, 0],
-    gain: 0.09,
-    filter: 1400,
+    gain: 0.28,
+    filter: 1450,
   },
 }
 
@@ -142,9 +142,9 @@ function iniciarSecuencia(
   const contexto = crearAudioContext()
   const salida = contexto.createGain()
   const compresor = contexto.createDynamicsCompressor()
-  salida.gain.value = 0.72
-  compresor.threshold.value = -18
-  compresor.ratio.value = 4
+  salida.gain.value = 0.9
+  compresor.threshold.value = -12
+  compresor.ratio.value = 3.5
   salida.connect(compresor).connect(contexto.destination)
 
   let detenido = false
@@ -171,7 +171,7 @@ function iniciarSecuencia(
 
   function tocar(paso: PasoMelodico, pasoIdx: number, cuando: number) {
     const perfil = perfiles[paso.type]
-    const volumen = Math.max(0.035, Math.min(perfil.gain, perfil.gain * paso.intensity))
+    const volumen = Math.max(0.16, Math.min(perfil.gain, perfil.gain * (0.45 + paso.intensity * 0.55)))
     const pan = paso.percussion ? -0.18 : 0.18
     const notas = paso.degree === null
       ? []
@@ -195,7 +195,7 @@ function iniciarSecuencia(
       filtro.type = 'lowpass'
       filtro.frequency.setValueAtTime(perfil.filter * (0.7 + paso.intensity * 0.3), inicio)
       envolvente.gain.setValueAtTime(0.0001, inicio)
-      envolvente.gain.exponentialRampToValueAtTime(volumen / notas.length, inicio + 0.025)
+      envolvente.gain.exponentialRampToValueAtTime(volumen / Math.sqrt(notas.length), inicio + 0.025)
       envolvente.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion)
       paneo.pan.setValueAtTime(pan * (indiceNota === 0 ? 1 : -1), inicio)
       oscilador.connect(filtro).connect(envolvente).connect(paneo).connect(salida)
@@ -211,7 +211,7 @@ function iniciarSecuencia(
       bajo.frequency.setValueAtTime(Math.max(38, base / 2), cuando)
       bajo.frequency.exponentialRampToValueAtTime(38, cuando + 0.16)
       golpe.gain.setValueAtTime(0.0001, cuando)
-      golpe.gain.exponentialRampToValueAtTime(0.12 * paso.intensity, cuando + 0.012)
+      golpe.gain.exponentialRampToValueAtTime(Math.max(0.14, 0.26 * paso.intensity), cuando + 0.012)
       golpe.gain.exponentialRampToValueAtTime(0.0001, cuando + 0.2)
       bajo.connect(golpe).connect(salida)
       bajo.start(cuando)
@@ -300,7 +300,7 @@ export function playQuintasEasterEgg(): void {
   try {
     const ctx = crearAudioContext()
     const master = ctx.createGain()
-    master.gain.value = 0.2
+    master.gain.value = 0.42
     master.connect(ctx.destination)
     void ctx.resume().then(() => {
       const now = ctx.currentTime + 0.02

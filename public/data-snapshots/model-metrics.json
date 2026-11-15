@@ -2,28 +2,28 @@
   "available": true,
   "database_engine": "postgresql",
   "catalog_summary": {
-    "total_events": 3290,
-    "total_periods": 203,
+    "total_events": 3502,
+    "total_periods": 216,
     "states_covered": 32,
-    "coastal_and_eez_adjacent_events": 2273,
-    "inland_continental_events": 1017,
+    "coastal_and_eez_adjacent_events": 2386,
+    "inland_continental_events": 1116,
     "by_hazard": {
-      "inundacion": 837,
+      "sequia": 887,
+      "inundacion": 832,
       "sismo": 734,
-      "incendio": 706,
-      "sequia": 607,
+      "incendio": 643,
       "huracan": 406
     },
     "by_evidence": {
-      "supervised": 1459,
+      "supervised": 1391,
       "observed": 1196,
-      "proxy": 635
+      "proxy": 915
     },
     "top_states": [
       {
         "state_clave": "07",
         "state_name": "Chiapas",
-        "count": 267,
+        "count": 268,
         "max_severity": 9.9
       },
       {
@@ -35,37 +35,37 @@
       {
         "state_clave": "12",
         "state_name": "Guerrero",
-        "count": 190,
+        "count": 192,
         "max_severity": 10.0
-      },
-      {
-        "state_clave": "02",
-        "state_name": "Baja California",
-        "count": 163,
-        "max_severity": 9.9
       },
       {
         "state_clave": "03",
         "state_name": "Baja California Sur",
-        "count": 158,
+        "count": 176,
         "max_severity": 9.9
       },
       {
-        "state_clave": "06",
-        "state_name": "Colima",
-        "count": 135,
+        "state_clave": "02",
+        "state_name": "Baja California",
+        "count": 140,
         "max_severity": 9.9
       },
       {
         "state_clave": "30",
         "state_name": "Veracruz de Ignacio de la Llave",
-        "count": 131,
+        "count": 140,
         "max_severity": 9.9
       },
       {
-        "state_clave": "16",
-        "state_name": "Michoacán de Ocampo",
-        "count": 119,
+        "state_clave": "06",
+        "state_name": "Colima",
+        "count": 138,
+        "max_severity": 9.9
+      },
+      {
+        "state_clave": "25",
+        "state_name": "Sinaloa",
+        "count": 134,
         "max_severity": 9.9
       }
     ]

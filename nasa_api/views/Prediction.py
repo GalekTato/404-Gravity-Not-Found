@@ -112,7 +112,7 @@ class DisastersGeoJSONView(APIView):
 
 
 class TimeMapView(APIView):
-    """Return the complete interactive timeline with event markers across 2010–2026."""
+    """Return the complete interactive timeline with event markers across 2010–2027."""
 
     @extend_schema(summary="Línea de tiempo (TimeMap) con marcas de eventos y conteos por amenaza")
     def get(self, request, *args, **kwargs):
@@ -148,7 +148,7 @@ class ExportEventsView(DisastersGeoJSONView):
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         period = response.data["metadata"]["period"]
-        result["Content-Disposition"] = f'attachment; filename="earthsync-{period}.xlsx"'
+        result["Content-Disposition"] = f'attachment; filename="terrasync-{period}.xlsx"'
         result["Cache-Control"] = "no-store"
         return result
 

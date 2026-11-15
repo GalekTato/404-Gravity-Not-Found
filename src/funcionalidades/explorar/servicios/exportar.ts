@@ -27,7 +27,7 @@ export async function exportarExcel(periodo: string, tipo?: TipoDesastre, estado
     const contentType = response.headers.get('content-type') ?? ''
     if (response.ok && (contentType.includes('spreadsheetml') || contentType.includes('octet-stream'))) {
       const blob = await response.blob()
-      descargarBlob(blob, `earthsync-${sufijo}.xlsx`)
+      descargarBlob(blob, `terrasync-${sufijo}.xlsx`)
       return
     }
   } catch {
@@ -45,5 +45,5 @@ export async function exportarExcel(periodo: string, tipo?: TipoDesastre, estado
     ].map(escaparCsv).join(','))
   }
   const csvBlob = new Blob([`\uFEFF${filas.join('\r\n')}`], { type: 'text/csv;charset=utf-8' })
-  descargarBlob(csvBlob, `earthsync-${sufijo}.csv`)
+  descargarBlob(csvBlob, `terrasync-${sufijo}.csv`)
 }

@@ -3,12 +3,12 @@
   "measurements": [
     {
       "backend": "h5py-streaming",
-      "seconds": 0.13944869999977527
+      "seconds": 0.6481868999999278
     },
     {
       "backend": "dask",
       "available": true,
-      "seconds": 0.012500499997258885
+      "seconds": 0.012686199999734527
     }
   ]
 }

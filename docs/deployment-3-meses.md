@@ -1,6 +1,6 @@
 # Guía de Deployment para 3 Meses (Opciones Gratuitas / Estudiantes)
 
-Este proyecto (`EarthSync · TerraSync`) está preparado con **arquitectura dual** para mantenerse desplegado durante **3 meses (o más) sin costo** y con funcionamiento garantizado:
+Este proyecto (**TerraSync · México**) está preparado con **arquitectura dual** para mantenerse desplegado durante **3 meses (o más) sin costo** y con funcionamiento garantizado:
 
 1. **Conexión en vivo a PostgreSQL + Django** cuando exista `VITE_API_BASE_URL` o proxy `/api`.
 2. **Respaldo automático en snapshots estáticos** (`public/data-snapshots/catalog-events.json` y `model-metrics.json`) si el servidor entra en reposo o si se publica únicamente en **GitHub Pages**.
@@ -11,7 +11,7 @@ Este proyecto (`EarthSync · TerraSync`) está preparado con **arquitectura dual
 
 | Opción | Frontend | Backend Django | PostgreSQL | Costo (3 meses) | Ventajas |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1. GitHub Pages + DigitalOcean Student Pack (Recomendada)** | **GitHub Pages** (`gh-pages` via `.github/workflows/deploy-pages.yml`) | **DigitalOcean Droplet ($6/mes)** usando el crédito estudiantil ($200 USD gratis con GitHub Student Developer Pack) | PostgreSQL 16 incluido en `compose.deploy.yaml` | **$0 USD** (~$18 USD cubiertos por el crédito) | Cero tiempos de espera por hibernación ("cold start"), soporta exportación nativa `.xlsx`, Redis y los 3,290+ eventos en PostgreSQL en `<50 ms`. |
+| **1. GitHub Pages + DigitalOcean Student Pack (Recomendada)** | **GitHub Pages** (`gh-pages` via `.github/workflows/deploy-pages.yml`) | **DigitalOcean Droplet ($6/mes)** usando el crédito estudiantil ($200 USD gratis con GitHub Student Developer Pack) | PostgreSQL 16 incluido en `compose.deploy.yaml` | **$0 USD** (~$18 USD cubiertos por el crédito) | Cero tiempos de espera por hibernación ("cold start"), soporta exportación nativa `.xlsx`, Redis y los 3,502 eventos en PostgreSQL en `<50 ms`. |
 | **2. 100% Gratis Híbrida (Render + Neon + GitHub Pages)** | **GitHub Pages** | **Render Free Web Service** (Docker / `deployment/api.Dockerfile`) | **Neon.tech Free Tier** (0.5 GB PostgreSQL serverless permanente) | **$0 USD** | Sin tarjeta de crédito. Cuando Render hiberna tras 15 min sin visitas, el frontend usa el snapshot local mientras el contenedor despierta. |
 | **3. 100% Autónoma en GitHub Pages** | **GitHub Pages** | No requerido (`public/data-snapshots/`) | Precompilado desde PostgreSQL al ejecutar `python scripts/export_static_snapshots.py` | **$0 USD** | Disponibilidad continua del 100%, velocidad `<15 ms`, mantenimiento cero durante los 3 meses. |
 

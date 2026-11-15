@@ -1,5 +1,5 @@
 export const proyecto = {
-  nombre: 'EarthSync · TerraSync',
+  nombre: 'TerraSync',
   nombreCorto: 'TerraSync',
   equipo: '404 Gravity Not Found',
   logoEquipo: `${import.meta.env.BASE_URL}assets/equipo/logo.jpg`,

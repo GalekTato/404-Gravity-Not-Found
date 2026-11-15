@@ -15,13 +15,20 @@ dist-ssr
 .env.*
 !.env.example
 __pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
 .venv/
 *.sqlite3
+.tmp/
 docs/entrega/*.aux
 docs/entrega/*.out
 docs/entrega/*.toc
 docs/entrega/*.nav
 docs/entrega/*.snm
+docs/entrega/*.log
+docs/entrega/*.fls
+docs/entrega/*.fdb_latexmk
 
 # Editor directories and files
 .vscode/*

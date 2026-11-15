@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useIdioma } from '../../configuracion/idiomaContexto'
 
-const STORAGE_KEY = 'earthsync-tutorial-dismissed'
+const STORAGE_KEY = 'terrasync-tutorial-dismissed'
 
 export function MiniTutorial({ autoAbrir = false }: { autoAbrir?: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -47,10 +47,10 @@ export function MiniTutorial({ autoAbrir = false }: { autoAbrir?: boolean }) {
       nota: t('Tu filtro de estado, mes y fenómeno se conserva automáticamente entre pestañas.', 'Your active state, month, and hazard filters carry over seamlessly across tabs.'),
     },
     {
-      titulo: t('Aprendizaje, minería y Easter Egg', 'Learning, data mining & Easter Egg'),
+      titulo: t('Aprendizaje, predicciones 2027 y GitHub', 'Learning, 2027 forecasts & GitHub'),
       texto: t(
-        'En Aprende podrás explorar la arquitectura matemática de los 6 modelos de minería de datos y sus métricas de backtesting. Además, busca el botón orbital "404-GNF" en la barra inferior para desbloquear el enlace secreto al repositorio en GitHub.',
-        'In Learn you can inspect the mathematical architecture of our 6 data-mining models and backtesting metrics. Also spot the orbital "404-GNF" badge in the footer to unlock a musical shortcut to the GitHub repository.',
+        'En Observaciones puedes cambiar libremente entre años y meses (hasta 2027) para ver las predicciones del modelo. En Aprende encontrarás guías breves y claras, y en la portada principal podrás encontrar el botón orbital 404-GNF para ir al repositorio en GitHub.',
+        'In Observations you can freely switch across years and months (through 2027) to inspect model forecasts. In Learn you will find brief, user-friendly guides, and on the Home page footer you can spot the 404-GNF badge to open the GitHub repository.',
       ),
       nota: t('Puedes cambiar entre ES y EN en cualquier momento desde la esquina superior derecha.', 'Switch seamlessly between ES and EN anytime from the top-right toggle.'),
     },
@@ -66,8 +66,8 @@ export function MiniTutorial({ autoAbrir = false }: { autoAbrir?: boolean }) {
   useEffect(() => {
     if (!autoAbrir || noMostrarMas) return
     try {
-      if (sessionStorage.getItem('earthsync-tutorial-shown-session') === '1') return
-      sessionStorage.setItem('earthsync-tutorial-shown-session', '1')
+      if (sessionStorage.getItem('terrasync-tutorial-shown-session') === '1') return
+      sessionStorage.setItem('terrasync-tutorial-shown-session', '1')
     } catch { /* ignore */ }
     const id = window.setTimeout(() => {
       if (dialog.current && !dialog.current.open) dialog.current.showModal()

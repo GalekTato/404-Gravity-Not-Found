@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useIdioma } from '../../../configuracion/idiomaContexto'
 import { useGeografia } from '../../explorar/hooks/useGeografia'
 import {
   COLORES_DESASTRE,
-  obtenerMetricasModelo,
   obtenerPredicciones,
   obtenerTimeMap,
   etiquetaAmenaza,
@@ -12,16 +11,19 @@ import {
   TIPOS_DESASTRE,
 } from '../../explorar/servicios/predicciones'
 import { useFiltrosCatalogo } from '../../explorar/hooks/useFiltrosCatalogo'
-import type { ColeccionPredicciones, ResumenMetricasModelo, TipoDesastre } from '../../explorar/servicios/predicciones'
+import type { ColeccionPredicciones, MarcaTimeMap, TipoDesastre } from '../../explorar/servicios/predicciones'
 import { exportarExcel } from '../../explorar/servicios/exportar'
 import { nombreIndicador } from '../../explorar/servicios/textosIndicadores'
 
-function formatoBytes(bytes: number): string {
-  if (!bytes) return '0 MB'
-  const gb = bytes / (1024 ** 3)
-  if (gb >= 1) return `${gb.toFixed(2)} GB`
-  return `${(bytes / (1024 ** 2)).toFixed(1)} MB`
-}
+const NOMBRES_MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+] as const
+
+const NOMBRES_MESES_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const
 
 export function ObservacionesPage() {
   const { t, idioma } = useIdioma()
@@ -29,29 +31,31 @@ export function ObservacionesPage() {
   const { datos: geografia } = useGeografia()
   const clave = `${periodo}:${estado}:${tipo ?? ''}`
   const [resultado, setResultado] = useState<{ clave: string; datos?: ColeccionPredicciones; error?: boolean }>()
-  const [metricas, setMetricas] = useState<ResumenMetricasModelo>()
+  const [marcas, setMarcas] = useState<MarcaTimeMap[]>([])
+  const [vistaDatos, setVistaDatos] = useState<'todos' | 'predicciones' | 'observados'>('todos')
   const [intento, setIntento] = useState(0)
   const [exportando, setExportando] = useState(false)
   const [errorExcel, setErrorExcel] = useState(false)
+  const inicializadoPeriodo = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
-    obtenerMetricasModelo(controller.signal).then(data => {
-      if (!controller.signal.aborted) setMetricas(data)
-    }).catch(() => {})
+    obtenerTimeMap(undefined, controller.signal)
+      .then(resumen => {
+        if (controller.signal.aborted) return
+        setMarcas(resumen.markers)
+        if (!inicializadoPeriodo.current && !periodo) {
+          inicializadoPeriodo.current = true
+          const defecto = resumen.markers.find(m => m.period === '2026-11')?.period
+            ?? resumen.markers.at(-1)?.period
+          if (defecto) setPeriodo(defecto)
+        } else if (periodo) {
+          inicializadoPeriodo.current = true
+        }
+      })
+      .catch(() => {})
     return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    if (periodo) return
-    const controller = new AbortController()
-    obtenerTimeMap(tipo, controller.signal, estado || undefined).then(resumen => {
-      const ultimo = resumen.markers.at(-1)?.period
-      if (!controller.signal.aborted && ultimo) setPeriodo(ultimo)
-      else if (!controller.signal.aborted) setResultado({ clave, datos: { type: 'FeatureCollection', features: [] } })
-    }).catch(() => { if (!controller.signal.aborted) setResultado({ clave, error: true }) })
-    return () => controller.abort()
-  }, [periodo, estado, tipo, clave, setPeriodo, intento])
+  }, [periodo, setPeriodo])
 
   useEffect(() => {
     if (!periodo) return
@@ -62,114 +66,186 @@ export function ObservacionesPage() {
     return () => controller.abort()
   }, [clave, periodo, estado, tipo, intento])
 
+  const aniosDisponibles = useMemo(() => {
+    const set = new Set<string>()
+    for (const m of marcas) set.add(m.period.slice(0, 4))
+    if (periodo) set.add(periodo.slice(0, 4))
+    return Array.from(set).sort((a, b) => b.localeCompare(a))
+  }, [marcas, periodo])
+
+  const anioActivo = periodo ? periodo.slice(0, 4) : (aniosDisponibles[0] ?? '2027')
+  const mesActivo = periodo ? periodo.slice(5, 7) : '01'
+
+  const mesesDelAnio = useMemo(() => {
+    const meses = new Set<string>()
+    for (const m of marcas) {
+      if (m.period.startsWith(`${anioActivo}-`)) meses.add(m.period.slice(5, 7))
+    }
+    if (!meses.size) {
+      for (let i = 1; i <= 12; i += 1) meses.add(String(i).padStart(2, '0'))
+    }
+    return Array.from(meses).sort()
+  }, [marcas, anioActivo])
+
+  function cambiarAnio(nuevoAnio: string) {
+    const mesesDisponibles = marcas
+      .filter(m => m.period.startsWith(`${nuevoAnio}-`))
+      .map(m => m.period.slice(5, 7))
+    const nuevoMes = mesesDisponibles.includes(mesActivo)
+      ? mesActivo
+      : (mesesDisponibles[0] ?? mesActivo)
+    setPeriodo(`${nuevoAnio}-${nuevoMes}`)
+  }
+
+  function cambiarMes(nuevoMes: string) {
+    setPeriodo(`${anioActivo}-${nuevoMes}`)
+  }
+
   const actual = resultado?.clave === clave ? resultado : undefined
-  const registros = useMemo(() => actual?.datos?.features ?? [], [actual])
+  const todosRegistros = useMemo(() => actual?.datos?.features ?? [], [actual])
+
+  const prediccionesDelMes = useMemo(
+    () => todosRegistros
+      .filter(f => !f.properties.observed)
+      .sort((a, b) => (b.properties.probability ?? 0) - (a.properties.probability ?? 0) || b.properties.severity - a.properties.severity),
+    [todosRegistros],
+  )
+
+  const observadosDelMes = useMemo(
+    () => todosRegistros.filter(f => Boolean(f.properties.observed)),
+    [todosRegistros],
+  )
+
+  const registros = useMemo(() => {
+    if (vistaDatos === 'predicciones') return prediccionesDelMes
+    if (vistaDatos === 'observados') return observadosDelMes
+    return todosRegistros
+  }, [todosRegistros, prediccionesDelMes, observadosDelMes, vistaDatos])
 
   const interpretacion = useMemo(() => {
-    if (!registros.length) return undefined
+    if (!todosRegistros.length) return undefined
     const conteoTipo: Partial<Record<TipoDesastre, number>> = {}
-    const conteoEvidencia = { observed: 0, supervised: 0, proxy: 0, no_confirmable: 0 }
     let sumaSev = 0
     const estadosUnicos = new Set<string>()
-    for (const item of registros) {
+    for (const item of todosRegistros) {
       const p = item.properties
       conteoTipo[p.type] = (conteoTipo[p.type] ?? 0) + 1
-      const ev = p.evidence ?? 'no_confirmable'
-      conteoEvidencia[ev] += 1
       sumaSev += p.severity
       if (p.state_name) estadosUnicos.add(p.state_name)
     }
     const dominante = (Object.entries(conteoTipo).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'inundacion') as TipoDesastre
-    const sevPromedio = sumaSev / registros.length
-    const confirmadosRatio = ((conteoEvidencia.observed + conteoEvidencia.supervised) / registros.length) * 100
-    return { dominante, sevPromedio, confirmadosRatio, estados: estadosUnicos.size, conteoEvidencia }
-  }, [registros])
+    const sevPromedio = sumaSev / todosRegistros.length
+    return { dominante, sevPromedio, estados: estadosUnicos.size }
+  }, [todosRegistros])
 
   async function descargar() {
     setExportando(true); setErrorExcel(false)
     try { await exportarExcel(periodo, tipo, estado || undefined) } catch { setErrorExcel(true) } finally { setExportando(false) }
   }
 
-  const sensoresInfo = [
-    { key: 'gpm', nombre: 'GPM IMERG v07B', rol: t('Precipitación diaria y acumulados 3d/7d en tierra y Pacífico/Golfo', 'Daily & 3d/7d accumulated precipitation across land and oceanic basins') },
-    { key: 'gldas', nombre: 'GLDAS Noah 0.25°', rol: t('Humedad superficial del suelo, evapotranspiración y vientos', 'Soil moisture anomaly, evapotranspiration and wind forcing') },
-    { key: 'modis', nombre: 'MODIS MOD11C3', rol: t('Temperatura superficial terrestre (LST) diurna y anomalía térmica', 'Daytime Land Surface Temperature (LST) and thermal anomaly') },
-    { key: 'firms', nombre: 'NASA FIRMS VIIRS + EONET', rol: t('Focos activos de calor e incendios forestales verificados por estado', 'Active fire hotspots & verified wildfires mapped to state polygons') },
-    { key: 'alos', nombre: 'ALOS PALSAR L-Band', rol: t('Pares SAR polarimétricos (co_pol / cross_pol) históricos en México', 'Historical polarimetric SAR pairs (co_pol / cross_pol) in Mexico') },
-    { key: 'nisar', nombre: 'NISAR L2 GCOV', rol: t('Retrodispersión polarimétrica de nueva generación preparada para monitoreo', 'Next-gen polarimetric backscatter prepared for hazard monitoring') },
-  ] as const
-
-  const summary = metricas?.catalog_summary
+  const nombresMeses = idioma === 'es' ? NOMBRES_MESES_ES : NOMBRES_MESES_EN
+  const esPronostico2027 = periodo.startsWith('2027-')
 
   return (
     <section className="content-page observations-page">
       <div className="page-heading">
-        <span className="section-kicker">02 / {t('Observaciones e Interpretación', 'Observations & Interpretation')}</span>
-        <h1>{t('Observaciones', 'Observations')}</h1>
+        <span className="section-kicker">02 / {t('Observaciones y Predicciones', 'Observations & Forecasts')}</span>
+        <h1>{t('Observaciones y Pronósticos', 'Observations & Forecasts')}</h1>
         <p>
           {t(
-            'Consulta los registros detrás del mapa e interpreta el comportamiento físico por sensor, evidencia y cobertura territorial (32 entidades federativas + Aguas Nacionales / ZEE de 200 mn).',
-            'Inspect the records behind the map and interpret physical behavior by sensor, evidence level, and territorial coverage (32 federal entities + Mexican 200 nm EEZ national waters).',
+            'Explora tanto los registros observados como las predicciones mensuales calibradas por entidad federativa — incluyendo los pronósticos para los 12 meses de 2027.',
+            'Explore both historical observed records and calibrated state-level monthly forecasts — including projections for all 12 months of 2027.',
           )}
         </p>
       </div>
 
-      {summary && (
-        <section className="insight-grid" aria-label={t('Interpretación global del catálogo PostgreSQL', 'Global PostgreSQL catalog interpretation')}>
-          <article className="insight-card">
-            <span className="section-kicker">{t('Catálogo histórico PostgreSQL', 'Historical PostgreSQL catalog')}</span>
-            <strong>{summary.total_events.toLocaleString()}</strong>
-            <p>{summary.total_periods} {t('meses', 'months')} · {summary.states_covered} {t('estados cubiertos', 'states covered')}</p>
-          </article>
-          <article className="insight-card">
-            <span className="section-kicker">{t('Territorio continental + ZEE (200 mn)', 'Land + Maritime EEZ (200 nm)')}</span>
-            <strong>{summary.coastal_and_eez_adjacent_events.toLocaleString()}</strong>
-            <p>
-              {t(
-                `Eventos en litorales / Aguas Nacionales vs. ${summary.inland_continental_events.toLocaleString()} en interior continental.`,
-                `Events in coastal / National Waters basins vs. ${summary.inland_continental_events.toLocaleString()} inland continental.`,
-              )}
-            </p>
-          </article>
-          <article className="insight-card">
-            <span className="section-kicker">{t('Distribución de evidencia', 'Evidence breakdown')}</span>
-            <strong>{(summary.by_evidence.observed ?? 0) + (summary.by_evidence.supervised ?? 0)}</strong>
-            <p>
-              {t(
-                `${summary.by_evidence.observed ?? 0} observados · ${summary.by_evidence.supervised ?? 0} supervisados · ${summary.by_evidence.proxy ?? 0} proxies.`,
-                `${summary.by_evidence.observed ?? 0} observed · ${summary.by_evidence.supervised ?? 0} supervised · ${summary.by_evidence.proxy ?? 0} proxies.`,
-              )}
-            </p>
-          </article>
-          <article className="insight-card">
-            <span className="section-kicker">{t('Base científica multisensor', 'Multisensor scientific archive')}</span>
-            <strong>{Object.values(metricas.sensors).reduce((acc, s) => acc + s.count, 0)}</strong>
-            <p>
-              {t(
-                'Archivos satelitales (GPM, GLDAS, MODIS, FIRMS, ALOS, NISAR) calibrados con USGS e IBTrACS.',
-                'Satellite archives (GPM, GLDAS, MODIS, FIRMS, ALOS, NISAR) calibrated against USGS & IBTrACS.',
-              )}
-            </p>
-          </article>
-        </section>
-      )}
+      <div className="period-shortcuts" role="group" aria-label={t('Accesos rápidos de periodo', 'Quick period shortcuts')}>
+        <button
+          type="button"
+          className={`quiet-button${esPronostico2027 ? ' is-active-shortcut' : ''}`}
+          onClick={() => setPeriodo('2027-01')}
+        >
+          {t('Predicciones 2027 (Ene–Dic)', '2027 Forecasts (Jan–Dec)')}
+        </button>
+        <button
+          type="button"
+          className={`quiet-button${periodo === '2026-11' ? ' is-active-shortcut' : ''}`}
+          onClick={() => setPeriodo('2026-11')}
+        >
+          {t('Noviembre 2026', 'November 2026')}
+        </button>
+        <button
+          type="button"
+          className={`quiet-button${periodo === '2027-08' ? ' is-active-shortcut' : ''}`}
+          onClick={() => setPeriodo('2027-08')}
+        >
+          {t('Temporada lluvias 2027 (Ago)', '2027 Rainy Season (Aug)')}
+        </button>
+      </div>
 
       <div className="catalog-filters">
-        <label>{t('Mes', 'Month')}<input type="month" value={periodo} onChange={event => filtrar('period', event.target.value)} /></label>
-        <label>{t('Estado', 'State')}<select value={estado} onChange={event => filtrar('state', event.target.value)}><option value="">{t('Todo México', 'All Mexico')}</option>{geografia?.catalogo.map(item => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}</select></label>
-        <label>{t('Fenómeno', 'Hazard')}<select value={tipo ?? ''} onChange={event => filtrar('type', event.target.value)}><option value="">{t('Todos', 'All')}</option>{TIPOS_DESASTRE.map(item => <option key={item} value={item}>{etiquetaAmenaza(item, idioma)}</option>)}</select></label>
-        <button className="export-button" disabled={!periodo || exportando || !actual?.datos} onClick={() => void descargar()}>{exportando ? t('Exportando…', 'Exporting…') : t('↓ Exportar Excel', '↓ Export Excel')}</button>
+        <label>
+          {t('Año', 'Year')}
+          <select aria-label={t('Año', 'Year')} value={anioActivo} onChange={event => cambiarAnio(event.target.value)}>
+            {aniosDisponibles.map(anio => (
+              <option key={anio} value={anio}>
+                {anio}{anio === '2027' ? ` (${t('Pronóstico', 'Forecast')})` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('Mes', 'Month')}
+          <select aria-label={t('Mes', 'Month')} value={mesActivo} onChange={event => cambiarMes(event.target.value)}>
+            {mesesDelAnio.map(mm => {
+              const nombre = nombresMeses[Number.parseInt(mm, 10) - 1] ?? mm
+              return <option key={mm} value={mm}>{mm} · {nombre}</option>
+            })}
+          </select>
+        </label>
+        <label>
+          {t('Estado', 'State')}
+          <select value={estado} onChange={event => filtrar('state', event.target.value)}>
+            <option value="">{t('Todo México', 'All Mexico')}</option>
+            {geografia?.catalogo.map(item => <option key={item.clave} value={item.clave}>{item.nombre}</option>)}
+          </select>
+        </label>
+        <label>
+          {t('Fenómeno', 'Hazard')}
+          <select value={tipo ?? ''} onChange={event => filtrar('type', event.target.value)}>
+            <option value="">{t('Todos', 'All')}</option>
+            {TIPOS_DESASTRE.map(item => <option key={item} value={item}>{etiquetaAmenaza(item, idioma)}</option>)}
+          </select>
+        </label>
+        <button className="export-button" disabled={!periodo || exportando || !actual?.datos} onClick={() => void descargar()}>
+          {exportando ? t('Exportando…', 'Exporting…') : t('↓ Exportar Excel', '↓ Export Excel')}
+        </button>
       </div>
+
+      <div className="view-toggle-bar" role="group" aria-label={t('Filtrar por tipo de registro', 'Filter by record source')}>
+        <button type="button" aria-pressed={vistaDatos === 'todos'} onClick={() => setVistaDatos('todos')}>
+          {t('Todos', 'All')} ({todosRegistros.length})
+        </button>
+        <button type="button" aria-pressed={vistaDatos === 'predicciones'} onClick={() => setVistaDatos('predicciones')}>
+          {t('Predicciones del modelo', 'Model predictions')} ({prediccionesDelMes.length})
+        </button>
+        <button type="button" aria-pressed={vistaDatos === 'observados'} onClick={() => setVistaDatos('observados')}>
+          {t('Eventos observados', 'Observed events')} ({observadosDelMes.length})
+        </button>
+      </div>
+
       {errorExcel && <p role="alert">{t('No se pudo exportar. Reintenta.', 'Export failed. Please retry.')}</p>}
 
       {interpretacion && (
-        <div className="period-interpretation-banner" role="region" aria-label={t('Interpretación del periodo seleccionado', 'Interpretation of selected period')}>
+        <div className="period-interpretation-banner" role="region" aria-label={t('Lectura del periodo seleccionado', 'Interpretation of selected period')}>
           <div>
-            <span className="section-kicker">{t('Lectura física de la selección', 'Physical reading of selection')}</span>
+            <span className="section-kicker">
+              {esPronostico2027 ? t('Proyección del modelo · Año 2027', 'Model projection · Year 2027') : t('Resumen del periodo seleccionado', 'Selected period summary')}
+            </span>
             <p>
               {t(
-                `En ${periodo || 'el periodo activo'} domina la señal de ${etiquetaAmenaza(interpretacion.dominante, 'es').toLowerCase()} (severidad media ${interpretacion.sevPromedio.toFixed(1)}/10 en ${interpretacion.estados} entidades). El ${interpretacion.confirmadosRatio.toFixed(0)}% de los registros proviene de observación directa o ensamble supervisado calibrado.`,
-                `In ${periodo || 'the active period'}, ${etiquetaAmenaza(interpretacion.dominante, 'en').toLowerCase()} signals dominate (mean severity ${interpretacion.sevPromedio.toFixed(1)}/10 across ${interpretacion.estados} states). ${interpretacion.confirmadosRatio.toFixed(0)}% of records come from direct observation or calibrated supervised ensembles.`,
+                `Para ${periodo || 'el periodo activo'} destacan ${prediccionesDelMes.length} predicciones del modelo y ${observadosDelMes.length} registros observados en ${interpretacion.estados} entidades (señal principal: ${etiquetaAmenaza(interpretacion.dominante, 'es').toLowerCase()}, severidad media ${interpretacion.sevPromedio.toFixed(1)}/10).`,
+                `For ${periodo || 'the active period'}, there are ${prediccionesDelMes.length} model forecasts and ${observadosDelMes.length} observed events across ${interpretacion.estados} states (main signal: ${etiquetaAmenaza(interpretacion.dominante, 'en').toLowerCase()}, mean severity ${interpretacion.sevPromedio.toFixed(1)}/10).`,
               )}
             </p>
           </div>
@@ -177,9 +253,50 @@ export function ObservacionesPage() {
         </div>
       )}
 
+      {prediccionesDelMes.length > 0 && vistaDatos !== 'observados' && (
+        <section className="predictions-highlight" aria-label={t('Predicciones del modelo para este mes', 'Model predictions for this month')}>
+          <div className="predictions-highlight-header">
+            <h2>{esPronostico2027 ? t(`Predicciones para ${periodo}`, `Forecasts for ${periodo}`) : t(`Predicciones del modelo · ${periodo}`, `Model predictions · ${periodo}`)}</h2>
+            <Link to={`/explorar?${consulta}`}>{t('Ver todas en el mapa', 'Inspect all on map')} ↗</Link>
+          </div>
+          <div className="prediction-cards-grid">
+            {prediccionesDelMes.slice(0, 6).map(({ properties: item, geometry }) => (
+              <article key={item.id} className="prediction-explain-card">
+                <div className="prediction-card-top">
+                  <span style={{ color: COLORES_DESASTRE[item.type] }}>{etiquetaAmenaza(item.type, idioma)}</span>
+                  <span className={`evidence-tag evidence-${item.evidence}`}>{etiquetaEvidencia(item.evidence, idioma)}</span>
+                </div>
+                <h3>{item.state_name ?? 'México'}</h3>
+                <p className="prediction-card-title">{nombreIndicador(item.name, idioma)}</p>
+                <dl className="prediction-card-stats">
+                  <div>
+                    <dt>{t('Probabilidad', 'Probability')}</dt>
+                    <dd>{typeof item.probability === 'number' ? `${(item.probability * 100).toFixed(0)}%` : '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('Severidad', 'Severity')}</dt>
+                    <dd>{item.severity.toFixed(1)}/10</dd>
+                  </div>
+                  <div>
+                    <dt>{t('Radio', 'Radius')}</dt>
+                    <dd>{item.radius_km} km</dd>
+                  </div>
+                </dl>
+                <Link
+                  className="text-link"
+                  to={`/explorar?period=${item.month ?? item.date.slice(0, 7)}${item.state_clave ? `&state=${item.state_clave}` : ''}&type=${item.type}`}
+                >
+                  {t('Ubicar en el mapa', 'Locate on map')} ({geometry.coordinates[1].toFixed(1)}°, {geometry.coordinates[0].toFixed(1)}°) ↗
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {!actual ? <p className="catalog-message" role="status">{t('Consultando catálogo…', 'Loading catalog…')}</p> : actual.error ? <div className="catalog-message" role="alert"><p>{t('No pudimos consultar el catálogo.', 'We could not load the catalog.')}</p><button className="quiet-button" onClick={() => setIntento(value => value + 1)}>{t('Reintentar', 'Retry')}</button></div> : <>
         <div className="catalog-summary">
-          <span>{registros.length} {t(registros.length === 1 ? 'registro' : 'registros', registros.length === 1 ? 'record' : 'records')} · {periodo || '—'}</span>
+          <span>{registros.length} {t(registros.length === 1 ? 'registro mostrado' : 'registros mostrados', registros.length === 1 ? 'record shown' : 'records shown')} · {periodo || '—'}</span>
           <Link to={`/explorar?${consulta}`}>{t('Abrir mapa', 'Open map')} ↗</Link>
         </div>
         {registros.length ? (
@@ -191,8 +308,8 @@ export function ObservacionesPage() {
                   <th>{t('Estado', 'State')}</th>
                   <th>{t('Fenómeno / registro', 'Hazard / record')}</th>
                   <th>{t('Severidad', 'Severity')}</th>
-                  <th>{t('Prob. / Score', 'Prob. / Score')}</th>
-                  <th>{t('Evidencia', 'Evidence')}</th>
+                  <th>{t('Probabilidad', 'Probability')}</th>
+                  <th>{t('Tipo', 'Type')}</th>
                   <th>{t('Fuente', 'Source')}</th>
                 </tr>
               </thead>
@@ -203,10 +320,7 @@ export function ObservacionesPage() {
                     <td>{item.state_name ?? 'México'}</td>
                     <td><strong>{etiquetaAmenaza(item.type, idioma)}</strong><span>{nombreIndicador(item.name, idioma)}</span></td>
                     <td>{item.severity.toFixed(1)}<small>/10</small></td>
-                    <td>
-                      {typeof item.probability === 'number' ? `${(item.probability * 100).toFixed(0)}%` : '—'}
-                      {item.score !== null && item.score !== undefined ? <small> ({item.score.toFixed(2)})</small> : null}
-                    </td>
+                    <td>{typeof item.probability === 'number' ? `${(item.probability * 100).toFixed(0)}%` : '—'}</td>
                     <td><span className={`evidence-tag evidence-${item.evidence}`}>{etiquetaEvidencia(item.evidence, idioma)}</span></td>
                     <td>{item.source ?? '—'}</td>
                   </tr>
@@ -216,36 +330,15 @@ export function ObservacionesPage() {
           </div>
         ) : (
           <div className="catalog-message">
-            <h2>{t('Sin registros', 'No records')}</h2>
-            <p>{t('Prueba otro mes o amplía los filtros. La ausencia de registros no demuestra ausencia de fenómenos.', 'Try another month or broaden the filters. Missing records do not demonstrate the absence of hazards.')}</p>
+            <h2>{t('Sin registros en esta vista', 'No records in this view')}</h2>
+            <p>{t('Prueba cambiando el filtro a "Todos", o selecciona otro año, mes o estado.', 'Try switching the filter to "All", or pick another year, month, or state.')}</p>
           </div>
         )}
       </>}
 
-      {metricas && (
-        <section className="sensor-interpretation-section" aria-label={t('Interpretación de datos por sensor', 'Sensor-level data interpretation')}>
-          <span className="section-kicker">{t('Fuentes procesadas en el pipeline', 'Pipeline processed sources')}</span>
-          <h2>{t('Cómo interpretamos cada fuente satelital y geofísica', 'How we interpret each satellite & geophysical source')}</h2>
-          <div className="sensor-cards-grid">
-            {sensoresInfo.map(sensor => {
-              const stats = metricas.sensors[sensor.key]
-              return (
-                <article key={sensor.key} className="sensor-card">
-                  <div className="sensor-card-top">
-                    <h3>{sensor.nombre}</h3>
-                    {stats && <span className="evidence-tag">{stats.count} {t('archivos', 'files')} · {formatoBytes(stats.total_bytes)}</span>}
-                  </div>
-                  <p>{sensor.rol}</p>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
       <p className="evidence-note">
-        {t('El catálogo reúne observaciones e indicadores derivados. No ofrece imágenes SAR ni alertas oficiales.', 'The catalog contains observations and derived indicators. It does not provide SAR imagery or official alerts.')}{' '}
-        <Link to="/learn">{t('Explorar modelos de minería y cómo interpretar la evidencia', 'Explore data-mining models and evidence guide')} ↗</Link>
+        {t('Las predicciones representan estimaciones estadísticas y no sustituyen alertas oficiales de Protección Civil.', 'Forecasts are statistical estimates and do not replace official Civil Protection alerts.')}{' '}
+        <Link to="/learn">{t('Cómo funciona TerraSync', 'How TerraSync works')} ↗</Link>
       </p>
     </section>
   )

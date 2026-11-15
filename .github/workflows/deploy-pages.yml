@@ -1,4 +1,4 @@
-name: Deploy EarthSync to GitHub Pages
+name: Deploy TerraSync to GitHub Pages
 
 on:
   push:

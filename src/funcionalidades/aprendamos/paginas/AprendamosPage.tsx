@@ -1,68 +1,77 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useIdioma } from '../../../configuracion/idiomaContexto'
 import { proyecto } from '../../../configuracion/proyecto'
 import { MiniTutorial } from '../../../componentes/ui/MiniTutorial'
-import {
-  COLORES_DESASTRE,
-  etiquetaAmenaza,
-  etiquetaEvidencia,
-  obtenerMetricasModelo,
-  obtenerPredicciones,
-  obtenerTimeMap,
-  type PropiedadesDesastre,
-  type ResumenMetricasModelo,
-} from '../../explorar/servicios/predicciones'
-import { nombreIndicador } from '../../explorar/servicios/textosIndicadores'
 
 export function AprendamosPage() {
-  const { t, idioma } = useIdioma()
+  const { t } = useIdioma()
   const [respuesta, setRespuesta] = useState<string>()
-  const [metricas, setMetricas] = useState<ResumenMetricasModelo>()
-  const [prediccionesRecientes, setPrediccionesRecientes] = useState<Array<{ props: PropiedadesDesastre; coords: [number, number] }>>([])
-  const [periodoMuestra, setPeriodoMuestra] = useState<string>()
-
-  useEffect(() => {
-    const controller = new AbortController()
-    obtenerMetricasModelo(controller.signal)
-      .then(data => { if (!controller.signal.aborted) setMetricas(data) })
-      .catch(() => {})
-    obtenerTimeMap(undefined, controller.signal)
-      .then(async res => {
-        if (controller.signal.aborted || !res.markers.length) return
-        const ultimo = res.markers[res.markers.length - 1]!.period
-        setPeriodoMuestra(ultimo)
-        const geojson = await obtenerPredicciones(ultimo, controller.signal)
-        if (controller.signal.aborted) return
-        const top = [...geojson.features]
-          .sort((a, b) => (b.properties.probability ?? 0) - (a.properties.probability ?? 0) || b.properties.severity - a.properties.severity)
-          .slice(0, 6)
-          .map(f => ({ props: f.properties, coords: f.geometry.coordinates as [number, number] }))
-        setPrediccionesRecientes(top)
-      })
-      .catch(() => {})
-    return () => controller.abort()
-  }, [])
 
   const lecciones = [
-    { titulo: t('El radar mide el eco', 'Radar measures echoes'), texto: t('Un radar emite microondas y registra el eco que vuelve de la superficie. SAR combina mediciones a lo largo del recorrido del instrumento para formar imágenes. La respuesta depende de la geometría, la humedad y la estructura del terreno.', 'Radar emits microwaves and records the echo returned by the surface. SAR combines measurements along the instrument’s path to form images. The response depends on geometry, moisture and surface structure.'), url: 'https://science.nasa.gov/mission/nisar/get-to-know-sar/', fuente: 'NASA · Get to know SAR' },
-    { titulo: t('Una señal no explica todo', 'One signal is not the whole story'), texto: t('Un cambio de intensidad puede tener varias causas. Interpretar una imagen exige revisar fechas, geometría de adquisición, polarización y contexto. Una diferencia visual, por sí sola, no confirma un sismo, una inundación o un incendio.', 'A change in intensity can have several causes. Interpretation requires acquisition dates, geometry, polarization and context. A visual difference alone does not confirm an earthquake, flood or fire.'), url: 'https://science.nasa.gov/mission/nisar/get-to-know-sar/', fuente: 'NASA · SAR' },
-    { titulo: t('Lee primero la evidencia', 'Read the evidence first'), texto: t('En TerraSync / EarthSync, observed identifica registros marcados como observados por el catálogo; supervised indica una salida etiquetada como supervisada calibrada con datos reales; proxy es un indicador indirecto físico; no_confirmable señala que la evidencia no permite confirmación.', 'In TerraSync / EarthSync, observed identifies catalog-verified observations; supervised denotes calibrated supervised ensemble outputs; proxy is a physical indirect indicator; no_confirmable means confirmation is not supported.'), fuente: t('Contrato del catálogo EarthSync', 'EarthSync catalog contract') },
-    { titulo: t('Consulta, compara, escucha y exporta', 'Inspect, compare, listen and export'), texto: t('Selecciona un estado, recorre los meses en el TimeMap, escucha la progresión por círculo de quintas y elige un fenómeno. Observaciones presenta las interpretaciones por sensor y Excel exporta los filtros activos.', 'Select a state, scrub months on the TimeMap, listen to the circle-of-fifths progression and filter hazards. Observations presents sensor-level interpretations and Excel exports your active filters.'), fuente: t('Guía de uso', 'User guide') },
+    {
+      titulo: t('Qué muestran los datos satelitales', 'What satellite data shows'),
+      texto: t(
+        'Satélites como GPM, MODIS y GLDAS miden lluvia, temperatura del suelo y humedad cada mes en todo México. TerraSync agrupa esas mediciones por estado para detectar condiciones fuera de lo normal.',
+        'Satellites like GPM, MODIS, and GLDAS measure rainfall, land temperature, and soil moisture every month across Mexico. TerraSync groups these readings by state to spot unusual conditions.',
+      ),
+    },
+    {
+      titulo: t('Diferencia entre observación y predicción', 'Observation vs. prediction'),
+      texto: t(
+        'Un registro "Observado" corresponde a un evento confirmado en el terreno o por satélite (por ejemplo un sismo del USGS, un huracán o un foco de calor). Una "Predicción" estima la probabilidad mensual de riesgo a partir de patrones climáticos, incluyendo pronósticos para 2027.',
+        'An "Observed" record is an event confirmed on the ground or by satellite (such as a USGS earthquake, a cyclone, or a fire hotspot). A "Forecast" estimates monthly hazard probability from climate patterns, including 2027 projections.',
+      ),
+    },
+    {
+      titulo: t('Qué significa cada etiqueta de evidencia', 'Understanding evidence labels'),
+      texto: t(
+        'En TerraSync verás tres niveles claros: Observada (evento medido directamente), Supervisada (predicción calibrada con historial real de incendios o ciclones) e Indicador indirecto (señal física preventiva del suelo o radar).',
+        'In TerraSync you will see three clear levels: Observed (directly measured event), Supervised (forecast calibrated with historical fire or cyclone records), and Proxy indicator (preventive soil or radar signal).',
+      ),
+    },
+    {
+      titulo: t('Cómo explorar, escuchar y exportar', 'How to explore, listen, and export'),
+      texto: t(
+        'En Explorar puedes filtrar por estado y mover la línea del tiempo (2010–2027) o pulsar "Escuchar quintas" para oír los cambios en música. En Observaciones puedes revisar las predicciones mes por mes y descargar la tabla en Excel.',
+        'In Explore you can filter by state, scrub the timeline (2010–2027), or press "Listen (5ths)" to hear hazard activity in music. In Observations you can browse monthly forecasts and export results to Excel.',
+      ),
+    },
   ]
 
-  const resultadosBacktest = metricas?.backtest?.results ?? []
-  const omitidosBacktest = metricas?.backtest?.skipped ?? []
+  const guiasModelo = [
+    {
+      titulo: t('Lluvias e inundaciones', 'Rainfall & floods'),
+      resumen: t(
+        'Compara cuánta lluvia y humedad superficial se acumulan en cada estado frente al historial de ciclones tropicales para calcular qué regiones tienen mayor probabilidad de inundación.',
+        'Compares accumulated rainfall and soil runoff per state against historical tropical cyclone tracks to estimate which regions face higher flood risk.',
+      ),
+    },
+    {
+      titulo: t('Incendios y sequía', 'Wildfires & drought'),
+      resumen: t(
+        'Revisa el calor acumulado en la superficie, la falta de lluvia y la sequedad del suelo para anticipar temporadas secas con mayor riesgo de incendio o estrés hídrico.',
+        'Checks surface heat buildup, rainfall deficits, and soil dryness to anticipate dry seasons with higher wildfire or drought risk.',
+      ),
+    },
+    {
+      titulo: t('Radar y sismos', 'Radar & earthquakes'),
+      resumen: t(
+        'Cruza el catálogo sísmico histórico con mediciones de radar satelital para identificar cambios del terreno y zonas sísmicamente activas sin reemplazar alertas oficiales.',
+        'Cross-checks historical earthquake catalogs with radar backscatter measurements to highlight ground changes and seismically active areas without replacing official alerts.',
+      ),
+    },
+  ]
 
   return (
     <section className="content-page learn-page">
       <div className="page-heading">
-        <span className="section-kicker">03 / {t('Aprendizaje y Minería de Datos', 'Learning & Data Mining')}</span>
-        <h1>{t('Antes de leer el mapa y sus predicciones.', 'Before you read the map and predictions.')}</h1>
+        <span className="section-kicker">03 / {t('Aprende', 'Learn')}</span>
+        <h1>{t('Guía rápida para interpretar el mapa y las predicciones.', 'Quick guide to reading the map and forecasts.')}</h1>
         <p>
           {t(
-            'Comprende el funcionamiento del radar SAR, la jerarquía de evidencia, los 6 modelos de minería de datos y las métricas reales de backtesting que respaldan cada predicción.',
-            'Understand how SAR radar works, the evidence hierarchy, the 6 data-mining models, and the chronological backtesting metrics behind every prediction.',
+            'Explicaciones breves y sencillas sobre de dónde salen los indicadores de TerraSync y cómo leerlos con criterio.',
+            'Short, friendly explanations on where TerraSync indicators come from and how to interpret them clearly.',
           )}
         </p>
         <MiniTutorial />
@@ -74,134 +83,40 @@ export function AprendamosPage() {
             <summary><span>0{index + 1}</span><h2>{item.titulo}</h2><span aria-hidden="true">+</span></summary>
             <div>
               <p>{item.texto}</p>
-              {item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.fuente} ↗</a> : <small>{item.fuente}</small>}
             </div>
           </details>
         ))}
       </div>
 
-      {metricas && (
-        <section className="mining-section" aria-label={t('Modelos de minería de datos y validación', 'Data mining models and validation')}>
-          <div className="mining-header">
-            <span className="section-kicker">{t('Arquitectura Predictiva', 'Predictive Architecture')}</span>
-            <h2>{t('Modelos de minería de datos y calibración', 'Data-mining models & calibration')}</h2>
-            <p>
-              {t(
-                'Combinamos índices físicos compuestos con un ensamble supervisado (Logistic Regression, Random Forest, Extra Trees), fusión log-odds calibrada a tasa base y detección de anomalías multivariadas (Isolation Forest + Autoencoder en PyTorch CUDA).',
-                'We combine composite physical indices with a supervised ensemble (Logistic Regression, Random Forest, Extra Trees), base-rate log-odds calibration, and multivariate anomaly detection (Isolation Forest + PyTorch CUDA Autoencoder).',
-              )}
-            </p>
-          </div>
+      <section className="mining-section" aria-label={t('Cómo estima los riesgos TerraSync', 'How TerraSync estimates risk')}>
+        <div className="mining-header">
+          <span className="section-kicker">{t('Funcionamiento sencillo', 'Simple overview')}</span>
+          <h2>{t('¿Cómo genera sus predicciones el sistema?', 'How does the system make predictions?')}</h2>
+          <p>
+            {t(
+              'El sistema revisa más de 16 años de mediciones satelitales en los 32 estados de México y busca similitudes con eventos pasados para estimar riesgos mensuales actuales y para 2027.',
+              'The system reviews over 16 years of satellite readings across all 32 Mexican states and matches patterns against past events to estimate current and 2027 monthly risk levels.',
+            )}
+          </p>
+        </div>
 
-          <div className="model-cards-grid">
-            {metricas.models.map(mod => (
-              <article key={mod.id} className="model-card">
-                <h3>{idioma === 'es' ? mod.name_es : mod.name_en}</h3>
-                <p className="model-algos">{mod.algorithms.join(' · ')}</p>
-                <p className="model-calibration">{mod.calibration}</p>
-                <code className="model-formula">{mod.formula}</code>
-              </article>
-            ))}
-          </div>
-
-          {resultadosBacktest.length > 0 && (
-            <div className="backtest-panel">
-              <h3>{t('Validación cronológica estricta (Backtesting Temporal)', 'Strict chronological backtesting')}</h3>
-              <div className="table-scroll" tabIndex={0} role="region" aria-label={t('Métricas de backtesting', 'Backtesting metrics')}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('Amenaza', 'Hazard')}</th>
-                      <th>{t('Verdad terreno', 'Ground truth source')}</th>
-                      <th>{t('Ventana (Train / Test)', 'Split (Train / Test)')}</th>
-                      <th>ROC-AUC</th>
-                      <th>F1</th>
-                      <th>{t('Precisión', 'Precision')}</th>
-                      <th>Recall</th>
-                      <th>Brier Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resultadosBacktest.map(row => (
-                      <tr key={row.hazard_type}>
-                        <td><strong>{etiquetaAmenaza(row.hazard_type as PropiedadesDesastre['type'], idioma)}</strong></td>
-                        <td>{row.source}</td>
-                        <td>{row.train_months} / {row.test_months} {t('meses', 'mo')}</td>
-                        <td><strong>{row.roc_auc.toFixed(4)}</strong></td>
-                        <td>{row.f1.toFixed(4)}</td>
-                        <td>{row.precision.toFixed(4)}</td>
-                        <td>{row.recall.toFixed(4)}</td>
-                        <td>{row.brier_score.toFixed(4)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {omitidosBacktest.length > 0 && (
-                <ul className="backtest-skipped-notes">
-                  {omitidosBacktest.map(sk => (
-                    <li key={sk.hazard_type}>
-                      <strong>{etiquetaAmenaza(sk.hazard_type as PropiedadesDesastre['type'], idioma)}:</strong> {sk.reason}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      {prediccionesRecientes.length > 0 && (
-        <section className="predictions-showcase" aria-label={t('Predicciones recientes del modelo', 'Recent model predictions')}>
-          <div className="mining-header">
-            <span className="section-kicker">{t('Inferencia en vivo', 'Live inference')} · {periodoMuestra}</span>
-            <h2>{t('Cómo explica el modelo las predicciones activas', 'How the model explains active predictions')}</h2>
-            <p>
-              {t(
-                'Cada punto combina probabilidad calibrada (0–100%), severidad escalada (0–10) y radio de influencia espacial asignado a la entidad federativa correspondiente.',
-                'Each point combines calibrated probability (0–100%), scaled severity (0–10), and spatial radius assigned to its corresponding Mexican federal entity.',
-              )}
-            </p>
-          </div>
-          <div className="prediction-cards-grid">
-            {prediccionesRecientes.map(({ props, coords }) => (
-              <article key={props.id} className="prediction-explain-card">
-                <div className="prediction-card-top">
-                  <span style={{ color: COLORES_DESASTRE[props.type] }}>{etiquetaAmenaza(props.type, idioma)}</span>
-                  <span className={`evidence-tag evidence-${props.evidence}`}>{etiquetaEvidencia(props.evidence, idioma)}</span>
-                </div>
-                <h3>{props.state_name ?? 'México'}</h3>
-                <p className="prediction-card-title">{nombreIndicador(props.name, idioma)}</p>
-                <dl className="prediction-card-stats">
-                  <div>
-                    <dt>{t('Probabilidad', 'Probability')}</dt>
-                    <dd>{typeof props.probability === 'number' ? `${(props.probability * 100).toFixed(0)}%` : '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>{t('Severidad', 'Severity')}</dt>
-                    <dd>{props.severity.toFixed(1)}/10</dd>
-                  </div>
-                  <div>
-                    <dt>{t('Coords', 'Coords')}</dt>
-                    <dd>{coords[1].toFixed(2)}°, {coords[0].toFixed(2)}°</dd>
-                  </div>
-                </dl>
-                <Link className="text-link" to={`/explorar?period=${props.month ?? props.date.slice(0, 7)}${props.state_clave ? `&state=${props.state_clave}` : ''}&type=${props.type}`}>
-                  {t('Ver en el mapa', 'Inspect on map')} ↗
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
+        <div className="model-cards-grid">
+          {guiasModelo.map(guia => (
+            <article key={guia.titulo} className="model-card">
+              <h3>{guia.titulo}</h3>
+              <p className="model-calibration">{guia.resumen}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="knowledge-check">
-        <span className="section-kicker">{t('Ponlo a prueba', 'Try it')}</span>
-        <h2>{t('Un indicador proxy aumenta. ¿Qué puedes concluir?', 'A proxy indicator increases. What can you conclude?')}</h2>
+        <span className="section-kicker">{t('Ponlo a prueba', 'Quick check')}</span>
+        <h2>{t('Si ves una predicción alta en el mapa, ¿qué significa?', 'If you see a high forecast on the map, what does it mean?')}</h2>
         <div>
           {[
-            [t('El fenómeno está confirmado', 'The event is confirmed'), 'confirmado'],
-            [t('Hay una señal que requiere contexto', 'There is a signal that needs context'), 'contexto'],
+            [t('Que el desastre ya ocurrió con certeza', 'That the disaster is already confirmed'), 'confirmado'],
+            [t('Que hay condiciones favorables y conviene revisar el contexto', 'That conditions are favorable and worth monitoring'), 'contexto'],
           ].map(([texto, valor]) => (
             <button key={valor} aria-pressed={respuesta === valor} onClick={() => setRespuesta(valor)}>{texto}</button>
           ))}
@@ -209,14 +124,14 @@ export function AprendamosPage() {
         {respuesta && (
           <p role="status">
             {respuesta === 'contexto'
-              ? t('Correcto. Revisa la fuente, la cobertura y otras evidencias antes de interpretar la señal.', 'Correct. Check the source, coverage and other evidence before interpreting the signal.')
-              : t('Un proxy no confirma un evento. Es una señal indirecta que necesita contexto y corroboración.', 'A proxy does not confirm an event. It is an indirect signal that needs context and corroboration.')}
+              ? t('Correcto. Las predicciones ayudan a anticipar y vigilar zonas prioritarias, complementando siempre la información oficial.', 'Correct. Forecasts help anticipate and monitor priority areas while always complementing official alerts.')
+              : t('No necesariamente ha ocurrido: una predicción indica probabilidad elevada según patrones satelitales e históricos.', 'Not necessarily confirmed yet: a forecast shows elevated likelihood based on satellite and historical patterns.')}
           </p>
         )}
       </section>
 
       <section className="team-section">
-        <div>
+        <div className="team-brand-col">
           <span className="section-kicker">{t('El proyecto', 'The project')}</span>
           <h2>{proyecto.nombreCorto}</h2>
           <img className="team-logo" src={proyecto.logoEquipo} width="200" height="200" alt={t('Logo del equipo 404 Gravity Not Found', '404 Gravity Not Found team logo')} loading="lazy" />
@@ -224,8 +139,8 @@ export function AprendamosPage() {
         <div>
           <p>
             {t(
-              'Atlas geoespacial y sistema de minería de datos de México (Equipo 404 Gravity Not Found) para explorar observaciones multisensor, interpretar evidencia física y sonificar series históricas.',
-              'Geospatial atlas and data-mining system for Mexico (Team 404 Gravity Not Found) to explore multisensor observations, interpret physical evidence, and sonify historical series.',
+              'Plataforma geoespacial desarrollada por el equipo 404 Gravity Not Found para explorar observaciones satelitales, pronósticos por entidad federativa y sonificación histórica en México.',
+              'Geospatial platform built by Team 404 Gravity Not Found to explore satellite observations, state-level forecasts, and historical sonification across Mexico.',
             )}
           </p>
           {proyecto.integrantes.length > 0 && (
@@ -236,12 +151,17 @@ export function AprendamosPage() {
         </div>
       </section>
 
-      <details className="source-credits">
-        <summary>{t('Fuentes y créditos', 'Sources and credits')}</summary>
+      <details className="source-credits" open>
+        <summary>{t('Fuentes y créditos de datos', 'Data sources and credits')}</summary>
         <ul>
-          <li><a href="https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/" target="_blank" rel="noreferrer">NASA · Blue Marble</a> — {t('textura del globo; la órbita es ilustrativa.', 'globe texture; the orbit is illustrative.')}</li>
-          <li><a href={`${import.meta.env.BASE_URL}creditos-iconos.txt`} target="_blank" rel="noreferrer">Solar Icons · 480 Design</a></li>
-          <li><a href="https://www.inegi.org.mx/servicios/catalogounico/" target="_blank" rel="noreferrer">INEGI · Marco Geoestadístico</a></li>
+          <li><a href="https://gpm.nasa.gov/data/imerg" target="_blank" rel="noreferrer">NASA GPM IMERG v07B</a> — {t('precipitación satelital mensual en México.', 'monthly satellite precipitation in Mexico.')}</li>
+          <li><a href="https://ldas.gsfc.nasa.gov/gldas" target="_blank" rel="noreferrer">NASA GLDAS Noah v2.1</a> — {t('humedad del suelo, escurrimiento superficial y variables climáticas.', 'soil moisture, surface runoff, and climate variables.')}</li>
+          <li><a href="https://modis.gsfc.nasa.gov/data/dataprod/mod11.php" target="_blank" rel="noreferrer">NASA Terra MODIS (MOD11C3)</a> — {t('temperatura superficial terrestre diurna y nocturna.', 'daytime and nighttime land surface temperature.')}</li>
+          <li><a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" rel="noreferrer">NASA FIRMS (VIIRS) y EONET v3</a> — {t('focos de calor activos e incendios forestales históricos.', 'active fire hotspots and historical wildfires.')}</li>
+          <li><a href="https://nisar.jpl.nasa.gov/" target="_blank" rel="noreferrer">JAXA ALOS PALSAR y NASA-ISRO NISAR</a> — {t('mediciones de radar polarimétrico SAR.', 'polarimetric SAR radar measurements.')}</li>
+          <li><a href="https://earthquake.usgs.gov/earthquakes/search/" target="_blank" rel="noreferrer">USGS Earthquake Catalog</a> — {t('catálogo histórico de sismos en México.', 'historical earthquake catalog for Mexico.')}</li>
+          <li><a href="https://www.ncei.noaa.gov/products/international-best-track-archive" target="_blank" rel="noreferrer">NOAA IBTrACS v04r01</a> — {t('trayectorias de ciclones tropicales en Atlántico y Pacífico.', 'North Atlantic and Eastern Pacific tropical cyclone tracks.')}</li>
+          <li><a href="https://www.inegi.org.mx/servicios/catalogounico/" target="_blank" rel="noreferrer">INEGI · Marco Geoestadístico</a> — {t('división política estatal y municipal de México.', 'state and municipal boundaries of Mexico.')}</li>
         </ul>
       </details>
     </section>

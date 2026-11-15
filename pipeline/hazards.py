@@ -230,6 +230,154 @@ def _fit_calibrated_score(
     return calibrated_logit, calibrated_prob
 
 
+def _fit_state_ensemble_model(
+    state_df: pd.DataFrame,
+    external_dir: Path,
+    hazard_type: str,
+    label_filename: str,
+    feature_cols: list[str],
+    score_col: str,
+) -> tuple[pd.Series, pd.Series]:
+    """Train the supervised 3-model ensemble on pre-forecast history and score all state-months (2010–2027)."""
+    from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    raw_score = state_df[score_col].astype(float)
+    fallback_prob = 1.0 / (1.0 + np.exp(-raw_score.clip(-15, 15)))
+    label_path = external_dir / label_filename
+    if not label_path.exists():
+        return raw_score, fallback_prob
+
+    labels = pd.read_parquet(label_path)
+    labels = labels[labels["hazard_type"] == hazard_type].dropna(subset=["month"])
+    if labels.empty:
+        return raw_score, fallback_prob
+
+    dedup = labels.groupby("month", as_index=False).agg(observed=("observed", "max"))
+    available_cols = [c for c in feature_cols if c in state_df.columns and state_df[c].notna().any()]
+    if not available_cols:
+        return raw_score, fallback_prob
+
+    merged = state_df[["month"] + available_cols].merge(dedup, on="month", how="left")
+    train_mask = (~state_df.get("is_forecast", pd.Series(False, index=state_df.index))) & merged["observed"].notna() & raw_score.notna()
+    y_train = merged.loc[train_mask, "observed"].astype(int).to_numpy()
+    if len(np.unique(y_train)) < 2:
+        return raw_score, fallback_prob
+
+    X_all = merged[available_cols].replace([np.inf, -np.inf], np.nan).to_numpy(dtype=np.float32)
+    X_train = X_all[train_mask.to_numpy()]
+
+    lr_pipe = make_pipeline(
+        SimpleImputer(strategy="median"),
+        StandardScaler(),
+        LogisticRegression(C=0.5, class_weight="balanced", max_iter=500, random_state=20261115),
+    )
+    rf_pipe = make_pipeline(
+        SimpleImputer(strategy="median"),
+        RandomForestClassifier(
+            n_estimators=180,
+            max_depth=5,
+            min_samples_leaf=5,
+            class_weight="balanced_subsample",
+            random_state=20261115,
+            n_jobs=1,
+        ),
+    )
+    et_pipe = make_pipeline(
+        SimpleImputer(strategy="median"),
+        ExtraTreesClassifier(
+            n_estimators=180,
+            max_depth=6,
+            min_samples_leaf=5,
+            class_weight="balanced",
+            random_state=20261115,
+            n_jobs=1,
+        ),
+    )
+    lr_pipe.fit(X_train, y_train)
+    rf_pipe.fit(X_train, y_train)
+    et_pipe.fit(X_train, y_train)
+
+    ens_prob = np.clip(
+        0.40 * lr_pipe.predict_proba(X_all)[:, 1]
+        + 0.35 * rf_pipe.predict_proba(X_all)[:, 1]
+        + 0.25 * et_pipe.predict_proba(X_all)[:, 1],
+        1e-4,
+        1.0 - 1e-4,
+    )
+    ens_logit = np.log(ens_prob / (1.0 - ens_prob))
+    blended_score = pd.Series(0.55 * ens_logit + 0.45 * raw_score.fillna(0.0), index=state_df.index)
+    blended_prob = pd.Series(1.0 / (1.0 + np.exp(-blended_score.clip(-15, 15))), index=state_df.index)
+    return blended_score.where(raw_score.notna(), np.nan), blended_prob.where(raw_score.notna(), np.nan)
+
+
+def _extend_state_features_through_2027(state_df: pd.DataFrame) -> pd.DataFrame:
+    """Impute trailing partial-sensor gaps in late 2026 and project 2027-01..2027-12 state features."""
+    df = state_df.copy()
+    df["state_clave"] = df["state_clave"].astype(str).str.zfill(2)
+    df["is_forecast"] = df["month"] >= "2026-11"
+
+    states = sorted(df["state_clave"].unique())
+    existing_pairs = set(zip(df["state_clave"], df["month"]))
+    forecast_months = ["2026-11", "2026-12"] + [f"2027-{m:02d}" for m in range(1, 13)]
+
+    extra_rows = []
+    for month in forecast_months:
+        for clave in states:
+            if (clave, month) not in existing_pairs:
+                extra_rows.append({"state_clave": clave, "month": month, "is_forecast": True})
+    if extra_rows:
+        df = pd.concat([df, pd.DataFrame(extra_rows)], ignore_index=True)
+
+    df = df.sort_values(["state_clave", "month"]).reset_index(drop=True)
+    dt = pd.to_datetime(df["month"] + "-01", errors="coerce")
+    df["_year"] = dt.dt.year
+    df["_mnum"] = dt.dt.month
+
+    numeric_cols = [
+        c for c in df.select_dtypes(include=[np.number]).columns
+        if c not in {"_year", "_mnum"} and not c.endswith("_lon") and not c.endswith("_lat")
+    ]
+    coord_cols = [c for c in df.columns if c.endswith("_lon") or c.endswith("_lat")]
+
+    hist_mask = df["_year"] <= 2026
+    recent_mask = (df["_year"] >= 2021) & (df["_year"] <= 2026)
+
+    for col in numeric_cols:
+        hist_mean = df[hist_mask].groupby(["state_clave", "_mnum"])[col].mean()
+        recent_mean = df[recent_mask].groupby(["state_clave", "_mnum"])[col].mean()
+        clim_val = df.set_index(["state_clave", "_mnum"]).index.map(hist_mean)
+        recent_val = df.set_index(["state_clave", "_mnum"]).index.map(recent_mean)
+        trend_delta = pd.Series(recent_val, index=df.index).astype(float) - pd.Series(clim_val, index=df.index).astype(float)
+        trend_delta = trend_delta.fillna(0.0) * 0.55
+
+        # State-level last observed anomaly persistence decaying with horizon
+        df["_anom"] = df[col] - pd.Series(clim_val, index=df.index).astype(float)
+        last_anom = df.groupby("state_clave")["_anom"].ffill().fillna(0.0)
+        months_since_obs = df.groupby("state_clave")[col].transform(
+            lambda s: s.isna().astype(int).groupby(s.notna().cumsum()).cumsum()
+        )
+        projected = (
+            pd.Series(clim_val, index=df.index).astype(float)
+            + trend_delta
+            + 0.42 * last_anom * (0.80 ** months_since_obs.clip(lower=0))
+        )
+        df[col] = df[col].where(df[col].notna(), projected)
+
+    for col in coord_cols:
+        coord_med = df[hist_mask].groupby(["state_clave", "_mnum"])[col].median()
+        state_med = df[hist_mask].groupby("state_clave")[col].median()
+        mapped = pd.Series(df.set_index(["state_clave", "_mnum"]).index.map(coord_med), index=df.index).astype(float)
+        mapped = mapped.fillna(df["state_clave"].map(state_med))
+        df[col] = df[col].where(df[col].notna(), mapped)
+
+    df = df.drop(columns=["_year", "_mnum", "_anom"], errors="ignore")
+    return df
+
+
 def build_hazard_catalog(
     monthly_features: str | Path,
     output: str | Path,
@@ -688,14 +836,64 @@ def build_spatial_hazard_catalog(
                     }
                 )
 
-    # 5. State-level calibrated predictions and anomalies across all 32 states
+    # 5. State-level calibrated predictions and anomalies across all 32 states (2010–2027)
     state_df = pd.read_parquet(state_features_path)
+    state_df = _extend_state_features_through_2027(state_df)
     state_df = _engineer_temporal_features(state_df, group_col="state_clave")
+
+    fire_state_features = [
+        "fire_physical_index",
+        "drought_physical_index",
+        "modis_lst_day_mean_gz",
+        "modis_lst_day_p95_gz",
+        "modis_lst_day_mean_z",
+        "diurnal_temp_range_gz",
+        "gpm_precip_mean_gz",
+        "gldas_soil_moisture_mean_gz",
+        "soil_moisture_3m_gz",
+        "soil_moisture_3m_z",
+        "month_sin",
+        "month_cos",
+    ]
+    flood_state_features = [
+        "flood_physical_index",
+        "gpm_precip_p95_z",
+        "gpm_precip_p95_gz",
+        "gpm_precip_mean_z",
+        "gpm_precip_mean_gz",
+        "gldas_runoff_surface_p95_z",
+        "gldas_runoff_surface_p95_gz",
+        "gldas_rain_p95_z",
+        "rain_intensity_ratio_z",
+        "month_sin",
+        "month_cos",
+    ]
+
+    state_df["fire_calibrated_score"], state_df["fire_calibrated_prob"] = _fit_state_ensemble_model(
+        state_df,
+        external_dir,
+        "incendio",
+        "firms_labels.parquet",
+        fire_state_features,
+        "fire_physical_index",
+    )
+    state_df["flood_calibrated_score"], state_df["flood_calibrated_prob"] = _fit_state_ensemble_model(
+        state_df,
+        external_dir,
+        "inundacion",
+        "ibtracs_labels.parquet",
+        flood_state_features,
+        "flood_physical_index",
+    )
+    state_df["drought_calibrated_prob"] = 1.0 / (
+        1.0 + np.exp(-state_df["drought_physical_index"].astype(float).clip(-15, 15))
+    )
 
     hazard_specs = [
         (
             "incendio",
-            "fire_physical_index",
+            "fire_calibrated_score",
+            "fire_calibrated_prob",
             "modis_lst_day_max_lon",
             "modis_lst_day_max_lat",
             "Riesgo de incendio",
@@ -705,6 +903,7 @@ def build_spatial_hazard_catalog(
         (
             "sequia",
             "drought_physical_index",
+            "drought_calibrated_prob",
             "gldas_soil_moisture_min_lon",
             "gldas_soil_moisture_min_lat",
             "Estrés hídrico / Sequía",
@@ -713,7 +912,8 @@ def build_spatial_hazard_catalog(
         ),
         (
             "inundacion",
-            "flood_physical_index",
+            "flood_calibrated_score",
+            "flood_calibrated_prob",
             "gpm_precip_max_lon",
             "gpm_precip_max_lat",
             "Riesgo hidrometeorológico de inundación",
@@ -723,18 +923,43 @@ def build_spatial_hazard_catalog(
     ]
 
     existing_keys = {(e["period"], e["hazard_type"], e["state_clave"]) for e in events}
-    for hazard_type, score_col, lon_col, lat_col, label_prefix, evidence_kind, radius_km in hazard_specs:
+    for hazard_type, score_col, prob_col, lon_col, lat_col, label_prefix, evidence_kind, radius_km in hazard_specs:
         valid = state_df.dropna(subset=[score_col]).copy()
         if valid.empty:
             continue
-        q75 = float(valid[score_col].quantile(0.75))
-        selected = valid[valid[score_col] >= max(0.65, q75)].copy()
-        # Keep up to top 8 states per month per hazard so the map shows clear regional hotspots
-        selected = (
-            selected.sort_values(score_col, ascending=False)
-            .groupby("month", as_index=False)
-            .head(8)
-        )
+
+        hist_valid = valid[~valid["is_forecast"]].copy()
+        fcst_valid = valid[valid["is_forecast"] & (~valid["month"].astype(str).str.startswith("2027-"))].copy()
+
+        selected_parts = []
+        if not hist_valid.empty:
+            q75 = float(hist_valid[score_col].quantile(0.75))
+            hist_sel = (
+                hist_valid[hist_valid[score_col] >= max(0.55, q75)]
+                .sort_values(score_col, ascending=False)
+                .groupby("month", as_index=False)
+                .head(8)
+            )
+            selected_parts.append(hist_sel)
+
+        if not fcst_valid.empty:
+            # For 2026-11..2026-12 closure horizon, surface top elevated-risk states per month
+            fcst_ranked = fcst_valid.sort_values([prob_col, score_col], ascending=[False, False])
+            fcst_sel = fcst_ranked[fcst_ranked[prob_col] >= 0.35].groupby("month", as_index=False).head(6)
+            if len(fcst_sel["month"].unique()) < len(fcst_valid["month"].unique()):
+                covered_months = set(fcst_sel["month"].unique())
+                fallback_fcst = (
+                    fcst_ranked[~fcst_ranked["month"].isin(covered_months)]
+                    .groupby("month", as_index=False)
+                    .head(4)
+                )
+                fcst_sel = pd.concat([fcst_sel, fallback_fcst], ignore_index=True)
+            selected_parts.append(fcst_sel)
+
+        if not selected_parts:
+            continue
+        selected = pd.concat(selected_parts, ignore_index=True)
+
         for _, row in selected.iterrows():
             clave = str(row["state_clave"]).zfill(2)
             period = str(row["month"])
@@ -744,10 +969,17 @@ def build_spatial_hazard_catalog(
             if st is None:
                 continue
             raw_score = float(row[score_col])
-            prob = float(1.0 / (1.0 + np.exp(-np.clip(raw_score, -15, 15))))
-            sev = round(float(np.clip(raw_score * 3.2 + 2.5, 2.5, 9.9)), 1)
+            prob = float(np.clip(row[prob_col], 0.01, 0.99))
+            sev = round(float(np.clip(prob * 7.2 + np.maximum(raw_score, 0.0) * 1.1 + 1.8, 2.5, 9.9)), 1)
             lon = float(row[lon_col]) if lon_col in row and pd.notna(row[lon_col]) else st.lon
             lat = float(row[lat_col]) if lat_col in row and pd.notna(row[lat_col]) else st.lat
+            is_fcst = bool(row.get("is_forecast", False))
+            if period.startswith("2027-"):
+                source_text = "Pronóstico 2027 · Ensamble multisensor estatal (GPM + MODIS + GLDAS)"
+            elif is_fcst:
+                source_text = "Pronóstico cierre 2026 · Ensamble multisensor estatal (GPM + MODIS + GLDAS)"
+            else:
+                source_text = "Modelo multisensor estatal (GPM + MODIS + GLDAS)"
             events.append(
                 {
                     "event_id": f"{hazard_type}-{period}-{clave}",
@@ -765,7 +997,62 @@ def build_spatial_hazard_catalog(
                     "probability": round(prob, 4),
                     "evidence": evidence_kind,
                     "observed": False,
-                    "source": "Modelo multisensor estatal (GPM + MODIS + GLDAS)",
+                    "source": source_text,
+                }
+            )
+
+    # 6. Full 32-state 2027 monthly forecast layer (exactamente 32 predicciones estatales por mes)
+    fcst_2027 = state_df[state_df["month"].astype(str).str.startswith("2027-")].copy()
+    if not fcst_2027.empty:
+        spec_by_hazard = {
+            h_type: (score_col, prob_col, lon_col, lat_col, label_prefix, evidence_kind, radius_km)
+            for h_type, score_col, prob_col, lon_col, lat_col, label_prefix, evidence_kind, radius_km in hazard_specs
+        }
+        candidates = []
+        for h_type, (score_col, prob_col, lon_col, lat_col, _, _, _) in spec_by_hazard.items():
+            part = fcst_2027[["state_clave", "month", score_col, prob_col, lon_col, lat_col]].copy()
+            part = part.rename(columns={score_col: "score", prob_col: "prob", lon_col: "lon", lat_col: "lat"})
+            part["hazard_type"] = h_type
+            candidates.append(part)
+        combined_2027 = pd.concat(candidates, ignore_index=True).dropna(subset=["prob", "score"])
+        top32_2027 = (
+            combined_2027.sort_values(["prob", "score"], ascending=[False, False])
+            .groupby(["month", "state_clave"], as_index=False)
+            .first()
+        )
+        for _, row in top32_2027.iterrows():
+            clave = str(row["state_clave"]).zfill(2)
+            period = str(row["month"])
+            h_type = str(row["hazard_type"])
+            if (period, h_type, clave) in existing_keys:
+                continue
+            st = state_by_clave.get(clave)
+            if st is None:
+                continue
+            _, _, _, _, label_prefix, evidence_kind, radius_km = spec_by_hazard[h_type]
+            raw_score = float(row["score"])
+            prob = float(np.clip(row["prob"], 0.01, 0.99))
+            sev = round(float(np.clip(prob * 7.2 + np.maximum(raw_score, 0.0) * 1.1 + 1.8, 2.5, 9.9)), 1)
+            lon = float(row["lon"]) if pd.notna(row["lon"]) else st.lon
+            lat = float(row["lat"]) if pd.notna(row["lat"]) else st.lat
+            events.append(
+                {
+                    "event_id": f"{h_type}-{period}-{clave}",
+                    "period": period,
+                    "date": f"{period}-15",
+                    "hazard_type": h_type,
+                    "name": f"{label_prefix} · {st.nombre}",
+                    "state_clave": clave,
+                    "state_name": st.nombre,
+                    "longitude": round(lon, 5),
+                    "latitude": round(lat, 5),
+                    "severity": sev,
+                    "radius_km": radius_km,
+                    "score": round(raw_score, 4),
+                    "probability": round(prob, 4),
+                    "evidence": evidence_kind,
+                    "observed": False,
+                    "source": "Pronóstico 2027 · Ensamble multisensor estatal (GPM + MODIS + GLDAS)",
                 }
             )
 
