@@ -10,12 +10,13 @@
   <img src="https://img.shields.io/badge/Django%20REST-PostgreSQL%2016-142b3a?style=for-the-badge&logo=postgresql&logoColor=38bdf8" alt="Django y PostgreSQL 16" />
   <img src="https://img.shields.io/badge/PyTorch-CUDA%20AMP-142b3a?style=for-the-badge&logo=pytorch&logoColor=f26b8a" alt="PyTorch CUDA" />
   <img src="https://img.shields.io/badge/Docker-Compose-142b3a?style=for-the-badge&logo=docker&logoColor=38bdf8" alt="Docker" />
+  <a href="https://galektato.github.io/404-Gravity-Not-Found/"><img src="https://img.shields.io/badge/Demo%20en%20Vivo-GitHub%20Pages-059669?style=for-the-badge&logo=githubpages&logoColor=ffffff" alt="Demo en Vivo" /></a>
 </p>
 
 **Atlas interactivo de observación terrestre, minería de datos multisensor y sonificación armónica para México.**<br />
 Cobertura de las **32 entidades federativas**, **2,478 municipios** y **216 meses (`2010-01` – `2027-12`)** con **3,502 registros georreferenciados** y **32 predicciones estatales mensuales para todo 2027**.
 
-[Inicio Rápido](#-inicio-rápido) · [Arquitectura](#️-arquitectura-del-sistema) · [Benchmarks](BENCHMARKS.md) · [Despliegue](deployment/README.md) · [Créditos](#-créditos-y-equipo)
+[🌐 Demo en Vivo](https://galektato.github.io/404-Gravity-Not-Found/) · [📡 API Swagger](https://terrasync-api-nrki.onrender.com/api/docs/swagger/) · [Inicio Rápido](#-inicio-rápido) · [Arquitectura](#️-arquitectura-del-sistema) · [Benchmarks](BENCHMARKS.md) · [Despliegue](deployment/README.md) · [Créditos](#-créditos-y-equipo)
 
 </div>
 
@@ -162,10 +163,10 @@ python -m unittest nasa_api.test_catalog -v  # Pruebas unitarias Django/Excel/AP
 python -m pytest tests/ -v                   # Pruebas del pipeline científico y ML
 ```
 
-### 3. Despliegue (3 meses sin costo para estudiantes)
+### 3. Despliegue en producción
 
-- **GitHub Pages (Frontend autónomo con fallback a snapshots estáticos)**: habilitado automáticamente en `.github/workflows/deploy-pages.yml` al hacer push a `main`.
-- **Backend en vivo por 3 meses sin costo**: usa `deployment/compose.deploy.yaml` en un Droplet de DigitalOcean ($200 USD con *GitHub Student Developer Pack*) o `deployment/api.Dockerfile` en Render + Neon PostgreSQL Free Tier, y configura `VITE_API_BASE_URL` en las variables del repositorio. Detalles en [deployment/README.md](deployment/README.md).
+- **Frontend (GitHub Pages):** [https://galektato.github.io/404-Gravity-Not-Found/](https://galektato.github.io/404-Gravity-Not-Found/) — construido y publicado automáticamente desde `.github/workflows/deploy-pages.yml` al hacer push a `main`, con fallback a *snapshots* estáticos.
+- **Backend API & Base de Datos (Render + Neon PostgreSQL 16):** [https://terrasync-api-nrki.onrender.com/api/catalog/status/](https://terrasync-api-nrki.onrender.com/api/catalog/status/) ([Swagger UI](https://terrasync-api-nrki.onrender.com/api/docs/swagger/)) — desplegado mediante `deployment/api.Dockerfile` y conectado vía `VITE_API_BASE_URL`. Detalles de infraestructura alternativa en [deployment/README.md](deployment/README.md).
 
 ---
 
