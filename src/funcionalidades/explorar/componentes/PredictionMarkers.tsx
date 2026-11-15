@@ -1,20 +1,28 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Feature, Point } from 'geojson'
+import type { GeoJSONSource, Map, MapMouseEvent } from 'maplibre-gl'
 import { useIdioma } from '../../../configuracion/idiomaContexto'
-import { Popup, type GeoJSONSource, type Map, type MapMouseEvent } from 'maplibre-gl'
 import { registrarIconosAmenaza } from '../servicios/iconosAmenazaMapa'
-import { contenidoPopup } from '../servicios/fichaIndicador'
+import { resumenIndicador } from '../servicios/fichaIndicador'
 import type { SesionMapa } from '../hooks/useMapaMexico'
-import {
-  esTipoDesastre,
-  obtenerPredicciones,
-} from '../servicios/predicciones'
+import { esTipoDesastre, obtenerPredicciones } from '../servicios/predicciones'
 import type { PropiedadesDesastre, TipoDesastre } from '../servicios/predicciones'
 import type { EstadoPredicciones } from '../tipos/cartografia'
-import { startDisasterLoop, type AudioPlayback } from '../../../utils/disasterSound'
+import {
+  descripcionInstrumento,
+  startDisasterLoop,
+  type AudioPlayback,
+} from '../../../utils/disasterSound'
 
 const FUENTE = 'predicciones-source'
 const CAPA_PUNTOS = 'predicciones-puntos'
+const MARGEN_VIEWPORT = 16
+
+interface SeleccionEvento {
+  props: PropiedadesDesastre
+  coordinates: [number, number]
+}
 
 function asegurarCapas(map: Map) {
   registrarIconosAmenaza(map)
@@ -30,7 +38,7 @@ function asegurarCapas(map: Map) {
       source: FUENTE,
       layout: {
         'icon-image': ['concat', 'amenaza-', ['get', 'type']],
-        'icon-size': ['interpolate', ['linear'], ['get', 'severity'], 0, .85, 10, 1.2],
+        'icon-size': ['interpolate', ['linear'], ['get', 'severity'], 0, 0.85, 10, 1.2],
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
         'symbol-sort-key': ['get', 'severity'],
@@ -75,6 +83,10 @@ function propiedadesDesde(feature: { properties?: Record<string, unknown> | null
   }
 }
 
+function clamp(valor: number, min: number, max: number): number {
+  return Math.max(min, Math.min(valor, max))
+}
+
 export function PredictionMarkers({
   sesion,
   visible,
@@ -92,20 +104,36 @@ export function PredictionMarkers({
   intento?: number
   onEstado?: (estado: EstadoPredicciones) => void
 }) {
-  const { idioma } = useIdioma()
-  const popupRef = useRef<Popup | null>(null)
-  const datosPopupRef = useRef<{ props: PropiedadesDesastre; coordinates: [number, number] } | undefined>(undefined)
+  const { idioma, t } = useIdioma()
+  const [seleccion, setSeleccion] = useState<SeleccionEvento | null>(null)
+  const [audioActivoId, setAudioActivoId] = useState<string | null>(null)
+  const [posicion, setPosicion] = useState<{ left: number; top: number }>({ left: 24, top: 96 })
   const audioRef = useRef<{ id: string; playback: AudioPlayback } | null>(null)
+  const cardRef = useRef<HTMLDivElement | null>(null)
   const idiomaRef = useRef(idioma)
 
-  function toggleAudioParaEvento(props: PropiedadesDesastre, coordinates: [number, number]): boolean {
-    if (audioRef.current?.id === props.id) {
-      audioRef.current.playback.stop()
-      audioRef.current = null
-      return false
-    }
+  useEffect(() => {
+    idiomaRef.current = idioma
+  }, [idioma])
+
+  const detenerAudio = useCallback(() => {
     audioRef.current?.playback.stop()
     audioRef.current = null
+    setAudioActivoId(null)
+  }, [])
+
+  const cerrarFicha = useCallback(() => {
+    detenerAudio()
+    setSeleccion(null)
+  }, [detenerAudio])
+
+  const toggleAudioParaEvento = useCallback((evento: SeleccionEvento) => {
+    const { props, coordinates } = evento
+    if (audioRef.current?.id === props.id) {
+      detenerAudio()
+      return
+    }
+    detenerAudio()
     try {
       const audioFeature: Feature<Point, PropiedadesDesastre> = {
         type: 'Feature',
@@ -115,28 +143,74 @@ export function PredictionMarkers({
       const playback = startDisasterLoop(audioFeature, {
         idioma: idiomaRef.current,
         onStop: () => {
-          if (audioRef.current?.id === props.id) audioRef.current = null
+          if (audioRef.current?.id === props.id) {
+            audioRef.current = null
+            setAudioActivoId(null)
+          }
         },
       })
       audioRef.current = { id: props.id, playback }
-      return true
+      setAudioActivoId(props.id)
     } catch {
-      return false
+      detenerAudio()
     }
-  }
+  }, [detenerAudio])
+
+  const recalcularPosicion = useCallback(() => {
+    if (!seleccion || !sesion?.activa) return
+    const { map } = sesion
+    const rect = map.getContainer().getBoundingClientRect()
+    const pt = map.project(seleccion.coordinates)
+    const anchorX = rect.left + pt.x
+    const anchorY = rect.top + pt.y
+
+    const cardWidth = cardRef.current?.offsetWidth || Math.min(340, window.innerWidth - MARGEN_VIEWPORT * 2)
+    const cardHeight = cardRef.current?.offsetHeight || 240
+
+    const maxLeft = Math.max(MARGEN_VIEWPORT, window.innerWidth - cardWidth - MARGEN_VIEWPORT)
+    const maxTop = Math.max(MARGEN_VIEWPORT, window.innerHeight - cardHeight - MARGEN_VIEWPORT)
+
+    const left = clamp(anchorX - cardWidth / 2, MARGEN_VIEWPORT, maxLeft)
+    const arriba = anchorY - cardHeight - 18
+    const debajo = anchorY + 20
+    const preferidoTop = arriba >= MARGEN_VIEWPORT ? arriba : debajo
+    const top = clamp(preferidoTop, MARGEN_VIEWPORT, maxTop)
+
+    setPosicion({ left, top })
+  }, [seleccion, sesion])
+
+  useLayoutEffect(() => {
+    if (!seleccion) return
+    recalcularPosicion()
+  }, [seleccion, idioma, audioActivoId, recalcularPosicion])
 
   useEffect(() => {
-    idiomaRef.current = idioma
-    if (popupRef.current?.isOpen() && datosPopupRef.current) {
-      const { props, coordinates } = datosPopupRef.current
-      popupRef.current.setDOMContent(
-        contenidoPopup(props, idioma, {
-          activo: audioRef.current?.id === props.id,
-          onToggleAudio: () => toggleAudioParaEvento(props, coordinates),
-        }),
-      )
+    if (!seleccion || !sesion?.activa) return
+    const { map } = sesion
+
+    function alMoverMapa() {
+      recalcularPosicion()
     }
-  }, [idioma])
+    function alPresionarFuera(event: PointerEvent) {
+      if (event.target instanceof Node && cardRef.current?.contains(event.target)) return
+      cerrarFicha()
+    }
+    function alPresionarTecla(event: KeyboardEvent) {
+      if (event.key === 'Escape') cerrarFicha()
+    }
+
+    map.on('move', alMoverMapa)
+    window.addEventListener('resize', alMoverMapa)
+    document.addEventListener('pointerdown', alPresionarFuera)
+    document.addEventListener('keydown', alPresionarTecla)
+
+    return () => {
+      map.off('move', alMoverMapa)
+      window.removeEventListener('resize', alMoverMapa)
+      document.removeEventListener('pointerdown', alPresionarFuera)
+      document.removeEventListener('keydown', alPresionarTecla)
+    }
+  }, [seleccion, sesion, recalcularPosicion, cerrarFicha])
 
   useEffect(() => {
     if (!sesion?.activa) return
@@ -144,28 +218,16 @@ export function PredictionMarkers({
     const { map } = mapaSesion
     const controller = new AbortController()
 
-    function detenerAudio() {
-      audioRef.current?.playback.stop()
-      audioRef.current = null
-    }
-
-    function cerrarPopup() {
-      detenerAudio()
-      popupRef.current?.remove()
-      popupRef.current = null
-      datosPopupRef.current = undefined
-    }
-
     async function sincronizar() {
       if (!visible) {
         fijarVisibilidad(map, false)
-        cerrarPopup()
+        cerrarFicha()
         onEstado?.({ estado: 'inactivo' })
         return
       }
 
       onEstado?.({ estado: 'cargando' })
-      cerrarPopup()
+      cerrarFicha()
       try {
         const datos = await obtenerPredicciones(fecha, controller.signal, tipo, estadoFiltro)
         if (controller.signal.aborted || !mapaSesion.activa) return
@@ -185,7 +247,7 @@ export function PredictionMarkers({
       } catch (error) {
         if (controller.signal.aborted || !mapaSesion.activa) return
         fijarVisibilidad(map, false)
-        cerrarPopup()
+        cerrarFicha()
         onEstado?.({
           estado: 'error',
           mensaje: error instanceof Error ? error.message : 'No se pudieron cargar las predicciones.',
@@ -200,22 +262,9 @@ export function PredictionMarkers({
       const props = propiedadesDesde(feature)
       if (!props || feature.geometry.type !== 'Point') return
 
-      const coords = feature.geometry.coordinates as [number, number]
-      cerrarPopup()
-      datosPopupRef.current = { props, coordinates: coords }
-      const popup = new Popup({ offset: 20, closeButton: true, className: 'prediccion-popup' })
-        .setLngLat(coords)
-        .setDOMContent(
-          contenidoPopup(props, idiomaRef.current, {
-            activo: audioRef.current?.id === props.id,
-            onToggleAudio: () => toggleAudioParaEvento(props, coords),
-          }),
-        )
-        .addTo(map)
-      popup.on('close', () => {
-        if (audioRef.current?.id === props.id) detenerAudio()
-      })
-      popupRef.current = popup
+      const coordinates = feature.geometry.coordinates as [number, number]
+      detenerAudio()
+      setSeleccion({ props, coordinates })
     }
 
     void sincronizar()
@@ -224,9 +273,64 @@ export function PredictionMarkers({
     return () => {
       controller.abort()
       map.off('click', onClick)
-      cerrarPopup()
+      cerrarFicha()
     }
-  }, [sesion, visible, fecha, tipo, estadoFiltro, intento, onEstado])
+  }, [sesion, visible, fecha, tipo, estadoFiltro, intento, onEstado, cerrarFicha, detenerAudio])
 
-  return null
+  if (!seleccion || !visible || typeof document === 'undefined') return null
+
+  const resumen = resumenIndicador(seleccion.props, idioma)
+  const audioActivo = audioActivoId === seleccion.props.id
+
+  return createPortal(
+    <div
+      ref={cardRef}
+      role="dialog"
+      aria-modal="false"
+      aria-label={resumen.titulo}
+      className="evento-ficha-flotante"
+      style={{ left: `${posicion.left}px`, top: `${posicion.top}px` }}
+    >
+      <button
+        type="button"
+        className="evento-ficha-cerrar"
+        aria-label={t('Cerrar descripción del evento', 'Close event description')}
+        onClick={cerrarFicha}
+      >
+        ×
+      </button>
+      <div className="prediccion-popup-contenido">
+        <p className="prediccion-popup-tipo" style={{ color: resumen.color }}>
+          {resumen.encabezado}
+        </p>
+        <p className="prediccion-popup-nombre" lang={idioma}>
+          {resumen.titulo}
+        </p>
+        <p className="prediccion-popup-detalle">{resumen.detalle}</p>
+        <p className="prediccion-popup-detalle">{resumen.evidencia}</p>
+        {resumen.fuente && <p className="prediccion-popup-detalle">{resumen.fuente}</p>}
+        <div className="prediccion-popup-audio-row">
+          <button
+            type="button"
+            className="quiet-button prediccion-popup-audio-btn"
+            aria-pressed={audioActivo}
+            onClick={() => toggleAudioParaEvento(seleccion)}
+          >
+            {audioActivo
+              ? `■ ${t('Detener quintas', 'Stop 5ths audio')}`
+              : `♫ ${t('Escuchar firma (quintas)', 'Listen (5ths signature)')}`}
+          </button>
+          <p className="prediccion-popup-audio-estado" aria-live="polite">
+            {audioActivo
+              ? `${t('Sonando:', 'Playing:')} ${descripcionInstrumento(seleccion.props.type, idioma)}`
+              : t(
+                  'Círculo de quintas mapeado a severidad y probabilidad.',
+                  'Circle of fifths mapped to severity & probability.',
+                )}
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
 }
